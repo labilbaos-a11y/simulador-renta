@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Simulador de impuesto a la renta en Chile: sueldo bruto o líquido, boletas de honorarios y APV, con la tabla del SII de agosto 2026.">
+<title>Simulador de Renta — Chile, agosto 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-height: 100vh; }
+  input, button, textarea, select { font: inherit; color: inherit; }
+  table { border-collapse: collapse; }
+  p, h1, h2, h3 { overflow-wrap: break-word; }
+</style>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --paper:     #EEF1EF;
+    --surface:   #FBFCFB;
+    --surface-2: #F4F7F5;
+    --line:      #DCE3DF;
+    --line-soft: #E8EDEA;
+    --ink:       #0F1A18;
+    --ink-2:     #3E4F4A;
+    --ink-3:     #6E827C;
+
+    --teal:  #0B8A72;
+    --gold:  #A8791A;
+    --blue:  #3C6FB0;
+    --clay:  #C0492E;
+
+    --teal-soft: #E2F0EC;
+    --clay-soft: #F8E7E2;
+    --gold-soft: #F5EEDC;
+
+    --shadow: 0 1px 2px rgba(15,26,24,.05), 0 8px 24px -14px rgba(15,26,24,.22);
+
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans:  system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:     #0B100F;
+      --surface:   #131B19;
+      --surface-2: #182220;
+      --line:      #26332F;
+      --line-soft: #1E2B28;
+      --ink:       #E7EEEB;
+      --ink-2:     #AFC0BA;
+      --ink-3:     #7A8D87;
+
+      --teal:  #2AA88E;
+      --gold:  #BC8B26;
+      --blue:  #5B92D6;
+      --clay:  #DD6B4E;
+
+      --teal-soft: #10302A;
+      --clay-soft: #33201A;
+      --gold-soft: #2E2716;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -16px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --paper:#EEF1EF; --surface:#FBFCFB; --surface-2:#F4F7F5; --line:#DCE3DF; --line-soft:#E8EDEA;
+    --ink:#0F1A18; --ink-2:#3E4F4A; --ink-3:#6E827C;
+    --teal:#0B8A72; --gold:#A8791A; --blue:#3C6FB0; --clay:#C0492E;
+    --teal-soft:#E2F0EC; --clay-soft:#F8E7E2; --gold-soft:#F5EEDC;
+    --shadow: 0 1px 2px rgba(15,26,24,.05), 0 8px 24px -14px rgba(15,26,24,.22);
+  }
+  :root[data-theme="dark"] {
+    --paper:#0B100F; --surface:#131B19; --surface-2:#182220; --line:#26332F; --line-soft:#1E2B28;
+    --ink:#E7EEEB; --ink-2:#AFC0BA; --ink-3:#7A8D87;
+    --teal:#2AA88E; --gold:#BC8B26; --blue:#5B92D6; --clay:#DD6B4E;
+    --teal-soft:#10302A; --clay-soft:#33201A; --gold-soft:#2E2716;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -16px rgba(0,0,0,.7);
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 72px; }
+
+  /* ---------- header ---------- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 8px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin-bottom: 6px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4.4vw, 42px);
+    line-height: 1.08; letter-spacing: -.015em; text-wrap: balance; margin: 0;
+  }
+  .subhead {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline;
+    margin-top: 10px; font-size: 13px; color: var(--ink-2);
+  }
+  .subhead b { font-family: var(--mono); font-weight: 600; color: var(--ink); font-size: 12.5px; }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 1fr; gap: 22px; margin-top: 26px; }
+  @media (min-width: 980px) {
+    .cols { grid-template-columns: 372px minmax(0,1fr); gap: 26px; align-items: start; }
+    .panel-col { position: sticky; top: 20px; }
+  }
+  .panel-col, .results { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .card-hd {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 13px 16px; border-bottom: 1px solid var(--line-soft); background: var(--surface-2);
+  }
+  .card-hd h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 17px; margin: 0; letter-spacing: -.01em;
+  }
+  .card-hd .hint { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+  .card-bd { padding: 16px; display: flex; flex-direction: column; gap: 15px; }
+
+  /* ---------- form ---------- */
+  [hidden] { display: none !important; }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  label.lbl, .lbl {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    font-weight: 650; color: var(--ink-3);
+  }
+  .seg {
+    display: inline-flex; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 2px; gap: 2px;
+  }
+  .seg button {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: 12.5px; font-weight: 550; color: var(--ink-2);
+    padding: 5px 12px; border-radius: 5px; white-space: nowrap;
+    transition: background .12s ease, color .12s ease;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .seg button:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+  .money { position: relative; display: block; }
+  .money > span {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 14px; color: var(--ink-3); pointer-events: none;
+  }
+  input[type="text"], input[type="number"], select {
+    width: 100%; font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums;
+    color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 7px; padding: 9px 11px; transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .money input { padding-left: 26px; }
+  input:focus, select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent); }
+  select { font-family: var(--sans); font-size: 13.5px; cursor: pointer; }
+  input[type="number"] { font-size: 13.5px; padding: 7px 9px; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-split { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  .check input { width: 16px; height: 16px; accent-color: var(--teal); cursor: pointer; flex: none; }
+
+  .divider { height: 1px; background: var(--line-soft); margin: 1px 0; }
+  .note { font-size: 11.5px; line-height: 1.45; color: var(--ink-3); }
+
+  details.params > summary {
+    list-style: none; cursor: pointer; font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; font-weight: 650; color: var(--ink-3);
+    display: flex; align-items: center; gap: 6px; padding: 2px 0;
+  }
+  details.params > summary::-webkit-details-marker { display: none; }
+  details.params > summary::before { content: "+"; font-family: var(--mono); font-size: 13px; }
+  details.params[open] > summary::before { content: "–"; }
+  details.params > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 3px; }
+  .params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .params-grid .field { gap: 4px; }
+  .params-grid .lbl { font-size: 10px; letter-spacing: .06em; }
+
+  /* ---------- headline strip ---------- */
+  .strip {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  @media (min-width: 620px) { .strip { grid-template-columns: repeat(4, 1fr); } }
+  .stat { background: var(--surface); padding: 13px 15px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .stat .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 650; color: var(--ink-3); }
+  .stat .v {
+    font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600;
+    font-size: clamp(19px, 2.6vw, 25px); letter-spacing: -.02em; line-height: 1.15;
+  }
+  .stat .s { font-size: 11.5px; color: var(--ink-3); }
+  .stat.pos .v { color: var(--teal); }
+  .stat.neg .v { color: var(--clay); }
+
+  /* ---------- breakdown bar ---------- */
+  .bar { display: flex; gap: 2px; height: 34px; margin-bottom: 11px; }
+  .bar > i {
+    display: block; border-radius: 2px; min-width: 2px;
+    transition: flex-grow .25s ease;
+  }
+  .bar > i:first-child { border-radius: 4px 2px 2px 4px; }
+  .bar > i:last-child { border-radius: 2px 4px 4px 2px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+  .legend .li { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; }
+  .legend .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; transform: translateY(-1px); }
+  .legend .nm { color: var(--ink-2); }
+  .legend .am { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .legend .pc { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+
+  /* ---------- ledger tables ---------- */
+  .ledger { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .ledger th, .ledger td { padding: 7px 0; text-align: left; }
+  .ledger td.n, .ledger th.n {
+    text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums;
+    white-space: nowrap; padding-left: 10px;
+  }
+  .ledger td.sub { padding-left: 14px; color: var(--ink-2); }
+  .ledger tr.rule > * { border-top: 1px solid var(--line-soft); }
+  .ledger tr.total > * { border-top: 2px solid var(--ink); font-weight: 700; padding-top: 9px; }
+  .ledger tr.total td.n { font-size: 16px; }
+  .ledger .tag {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+    padding-left: 8px; white-space: nowrap;
+  }
+  .neg { color: var(--clay); }
+  .posv { color: var(--teal); }
+
+  .scroll { overflow-x: auto; }
+
+  /* ---------- tramos ---------- */
+  .tramos { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 480px; }
+  .tramos th {
+    text-align: right; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 650; padding: 0 0 7px; border-bottom: 1px solid var(--line);
+  }
+  .tramos th:first-child { text-align: left; }
+  .tramos td {
+    text-align: right; padding: 6px 0; font-family: var(--mono);
+    font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line-soft); color: var(--ink-2);
+  }
+  .tramos td:first-child { text-align: left; padding-left: 8px; }
+  .tramos th:not(:first-child), .tramos td:not(:first-child) { padding-left: 12px; }
+  .tramos tr.on td { background: var(--teal-soft); color: var(--ink); font-weight: 600; }
+  .tramos tr.on td:first-child { box-shadow: inset 3px 0 0 var(--teal); }
+  .tramos tr.on td:first-child::after { content: " ← tu tramo"; font-family: var(--sans); font-size: 10.5px; color: var(--teal); font-weight: 650; }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5;
+    border: 1px solid transparent;
+  }
+  .callout b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .callout.good { background: var(--teal-soft); border-color: color-mix(in srgb, var(--teal) 26%, transparent); color: var(--ink); }
+  .callout.warn { background: var(--clay-soft); border-color: color-mix(in srgb, var(--clay) 26%, transparent); color: var(--ink); }
+  .callout.gold { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 26%, transparent); color: var(--ink); }
+  .callout .hd { font-weight: 700; display: block; margin-bottom: 2px; font-family: var(--sans); }
+
+  .duo { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 560px) { .duo { grid-template-columns: 1fr 1fr; } }
+  .regbox { border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; display: flex; flex-direction: column; gap: 4px; }
+  .regbox.win { border-color: var(--gold); background: var(--gold-soft); }
+  .regbox .rt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 650; color: var(--ink-3); }
+  .regbox .rv { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
+  .regbox .rd { font-size: 12px; color: var(--ink-2); line-height: 1.4; }
+  .regbox .badge {
+    align-self: flex-start; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    font-weight: 700; background: var(--gold); color: #fff; padding: 2px 7px; border-radius: 4px; margin-top: 2px;
+  }
+
+  .empty { font-size: 13px; color: var(--ink-3); font-style: italic; }
+
+  footer {
+    margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line);
+    font-size: 11.5px; line-height: 1.55; color: var(--ink-3);
+  }
+  footer b { color: var(--ink-2); font-weight: 650; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .masthead { position: relative; padding-right: 108px; }
+  .themebtn {
+    position: absolute; top: 2px; right: 0; appearance: none; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); color: var(--ink-2);
+    border-radius: 7px; padding: 6px 12px; font-size: 12px; font-weight: 550;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color .12s ease, color .12s ease;
+  }
+  .themebtn:hover { border-color: var(--ink-3); color: var(--ink); }
+  .themebtn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  @media (max-width: 520px) { .masthead { padding-right: 0; } .themebtn { position: static; margin-bottom: 10px; } }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+      <button type="button" class="themebtn" id="themebtn" aria-label="Cambiar entre tema claro y oscuro">
+        <span id="themeicon">◐</span><span id="themetxt">Tema</span>
+      </button>
+
+    <div class="eyebrow">Impuesto Único de Segunda Categoría · Global Complementario</div>
+    <h1>Simulador de renta</h1>
+    <div class="subhead">
+      <span>Tabla SII <b>agosto 2026</b></span>
+      <span>UTM <b>$71.649</b></span>
+      <span>UTA <b>$859.788</b></span>
+      <span>Sueldo · boletas de honorarios · APV</span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= PANEL IZQUIERDO ================= -->
+    <div class="panel-col">
+
+      <section class="card">
+        <div class="card-hd"><h2>Sueldo</h2><span class="hint">mensual</span></div>
+        <div class="card-bd">
+          <div class="field">
+            <div class="row-split">
+              <span class="lbl">Ingresas el</span>
+              <div class="seg" id="segSueldo">
+                <button type="button" data-v="bruto" aria-pressed="true">Bruto</button>
+                <button type="button" data-v="liquido" aria-pressed="false">Líquido</button>
+              </div>
+            </div>
+            <span class="money"><span>$</span><input type="text" id="sueldo" inputmode="numeric" value="2.500.000" aria-label="Monto del sueldo"></span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row2">
+            <div class="field">
+              <label class="lbl" for="afp">AFP</label>
+              <select id="afp">
+                <option value="0.0149">Capital — 1,49%</option>
+                <option value="0.0144">Cuprum — 1,44%</option>
+                <option value="0.0127" selected>Habitat — 1,27%</option>
+                <option value="0.0058">Modelo — 0,58%</option>
+                <option value="0.0116">PlanVital — 1,16%</option>
+                <option value="0.0145">Provida — 1,45%</option>
+                <option value="0.0049">Uno — 0,49%</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="lbl" for="comision">Comisión %</label>
+              <input type="number" id="comision" step="0.01" min="0" value="1.27">
+            </div>
+          </div>
+
+          <label class="check"><input type="checkbox" id="isapre"> Tengo isapre (plan sobre el 7%)</label>
+          <div class="field" id="wrapPlan" hidden>
+            <label class="lbl" for="plan">Costo del plan (mensual)</label>
+            <span class="money"><span>$</span><input type="text" id="plan" inputmode="numeric" value="0" aria-label="Costo mensual del plan de isapre"></span>
+            <p class="note">Solo el 7% legal rebaja impuesto. Lo que pagas por sobre eso sale de tu líquido y no es deducible.</p>
+          </div>
+
+          <label class="check"><input type="checkbox" id="afc" checked> Contrato indefinido — cotizo AFC (0,6%)</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>Boletas de honorarios</h2><span class="hint">opcional</span></div>
+        <div class="card-bd">
+          <div class="field">
+            <div class="row-split">
+              <span class="lbl">Monto</span>
+              <div class="seg" id="segHonMonto">
+                <button type="button" data-v="bruto" aria-pressed="true">Bruto</button>
+                <button type="button" data-v="liquido" aria-pressed="false">Líquido</button>
+              </div>
+            </div>
+            <span class="money"><span>$</span><input type="text" id="honorarios" inputmode="numeric" value="0" aria-label="Monto de boletas de honorarios"></span>
+          </div>
+          <div class="row-split">
+            <span class="lbl">Período</span>
+            <div class="seg" id="segHonPeriodo">
+              <button type="button" data-v="mensual" aria-pressed="true">Mensual</button>
+              <button type="button" data-v="anual" aria-pressed="false">Anual</button>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="cotIndep" checked> Cotizo como independiente (Ley 21.133)</label>
+          <p class="note">Las boletas no pagan Segunda Categoría: se juntan con el sueldo en abril, en el Global Complementario. Ahí se ve si te devuelven o si tienes que pagar.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>APV</h2><span class="hint">ahorro previsional</span></div>
+        <div class="card-bd">
+          <div class="field">
+            <label class="lbl" for="apv">Aporte mensual</label>
+            <span class="money"><span>$</span><input type="text" id="apv" inputmode="numeric" value="0" aria-label="Aporte mensual de APV"></span>
+          </div>
+          <div class="row-split">
+            <span class="lbl">Régimen</span>
+            <div class="seg" id="segApv">
+              <button type="button" data-v="B" aria-pressed="true">B — rebaja impuesto</button>
+              <button type="button" data-v="A" aria-pressed="false">A — bono 15%</button>
+            </div>
+          </div>
+          <p class="note">Régimen B: el aporte se descuenta de la base y pagas menos impuesto ahora. Régimen A: el Estado te deposita un 15% en el fondo (tope 6 UTM al año), pero no rebaja impuesto.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-bd">
+          <details class="params">
+            <summary>Parámetros y topes</summary>
+            <div class="params-grid">
+              <div class="field">
+                <label class="lbl" for="uf">Valor UF ($)</label>
+                <input type="number" id="uf" step="1" value="41000">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeImp">Tope imponible (UF)</label>
+                <input type="number" id="topeImp" step="0.1" value="87.8">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeAfc">Tope AFC (UF)</label>
+                <input type="number" id="topeAfc" step="0.1" value="131.8">
+              </div>
+              <div class="field">
+                <label class="lbl" for="retencion">Retención boletas (%)</label>
+                <input type="number" id="retencion" step="0.05" value="15.25">
+              </div>
+              <div class="field">
+                <label class="lbl" for="tasaIndep">Cotización indep. (%)</label>
+                <input type="number" id="tasaIndep" step="0.1" value="20.7">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeApv">Tope APV B (UF/mes)</label>
+                <input type="number" id="topeApv" step="1" value="50">
+              </div>
+            </div>
+            <p class="note" style="margin-top:10px">La UF y los topes cambian todos los meses o años. Ajústalos si quieres precisión al peso; casi nunca mueven el resultado salvo en sueldos altos.</p>
+          </details>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ================= RESULTADOS ================= -->
+    <div class="results">
+
+      <div class="strip" id="strip"></div>
+
+      <section class="card">
+        <div class="card-hd"><h2>Liquidación mensual</h2><span class="hint" id="hdModo"></span></div>
+        <div class="card-bd">
+          <div>
+            <div class="bar" id="bar"></div>
+            <div class="legend" id="legend"></div>
+          </div>
+          <div class="divider"></div>
+          <table class="ledger" id="tablaMes"></table>
+        </div>
+      </section>
+
+      <section class="card" id="cardApv">
+        <div class="card-hd"><h2>Qué te devuelve el APV</h2><span class="hint" id="hdApv"></span></div>
+        <div class="card-bd" id="bdApv"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>Año tributario — Operación Renta</h2><span class="hint">abril 2027</span></div>
+        <div class="card-bd">
+          <table class="ledger" id="tablaAnual"></table>
+          <div id="resultadoAnual"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>Tramos del impuesto</h2><span class="hint">agosto 2026</span></div>
+        <div class="card-bd">
+          <div class="scroll"><table class="tramos" id="tablaTramos"></table></div>
+          <p class="note">La renta líquida imponible es tu sueldo bruto menos AFP, salud (7%) y AFC. El impuesto es esa base por el factor, menos la rebaja del tramo. Si cargas boletas, el tramo marcado es el del año completo, no el del sueldo solo.</p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <footer>
+    <b>Estimación referencial.</b> Usa la tabla del Impuesto Único de Segunda Categoría publicada por el SII para agosto 2026 (UTM $71.649) y reglas vigentes de AFP, salud, AFC, APV y honorarios.
+    No considera rentas de capital, créditos por gastos en educación, dividendos de empresas, gastos efectivos en vez de presuntos, ni tramos de cobertura parcial de cotizaciones de independiente.
+    Los valores de UF, topes imponibles y tasas son editables en «Parámetros y topes» porque cambian mes a mes. Para tu declaración final, valida con tu contador.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- Tabla IUSC — agosto 2026 ---------------- */
+  var UTM = 71649;
+  var UTA = UTM * 12;
+  var TABLA = [
+    { hasta: 967261.50,  f: 0,     r: 0,          etq: "Exento" },
+    { hasta: 2149470,    f: 0.04,  r: 38690.46,   etq: "4%" },
+    { hasta: 3582450,    f: 0.08,  r: 124669.26,  etq: "8%" },
+    { hasta: 5015430,    f: 0.135, r: 321704.01,  etq: "13,5%" },
+    { hasta: 6448410,    f: 0.23,  r: 798169.86,  etq: "23%" },
+    { hasta: 8597880,    f: 0.304, r: 1275352.20, etq: "30,4%" },
+    { hasta: 22211190,   f: 0.35,  r: 1670854.68, etq: "35%" },
+    { hasta: Infinity,   f: 0.40,  r: 2781414.18, etq: "40%" }
+  ];
+
+  function tramoDe(rli) {
+    for (var i = 0; i < TABLA.length; i++) if (rli <= TABLA[i].hasta) return i;
+    return TABLA.length - 1;
+  }
+  function impuestoMensual(rli) {
+    if (rli <= 0) return 0;
+    var t = TABLA[tramoDe(rli)];
+    return Math.max(0, rli * t.f - t.r);
+  }
+
+  /* ---------------- Formato ---------------- */
+  var nf = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
+  function $(v) { return "$" + nf.format(Math.round(v || 0)); }
+  function $s(v) { var n = Math.round(v || 0); return (n < 0 ? "−$" : "$") + nf.format(Math.abs(n)); }
+  function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d).replace(".", ",") + "%"; }
+
+  /* ---------------- Estado ---------------- */
+  var S = {
+    modoSueldo: "bruto",
+    modoHon: "bruto",
+    periodoHon: "mensual",
+    regimen: "B"
+  };
+
+  var el = {};
+  ["sueldo","afp","comision","isapre","wrapPlan","plan","afc","honorarios","cotIndep",
+   "apv","uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
+   "strip","bar","legend","tablaMes","tablaAnual","resultadoAnual","tablaTramos",
+   "cardApv","bdApv","hdApv","hdModo"].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
+  function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
+
+  /* ---------------- Motor de cálculo ---------------- */
+  function params() {
+    var uf = dec(el.uf) || 41000;
+    return {
+      uf: uf,
+      topeImp: uf * (dec(el.topeImp) || 87.8),
+      topeAfc: uf * (dec(el.topeAfc) || 131.8),
+      topeApv: uf * (dec(el.topeApv) || 50),
+      comision: (dec(el.comision) || 0) / 100,
+      isapre: el.isapre.checked,
+      plan: num(el.plan),
+      afc: el.afc.checked,
+      retencion: (dec(el.retencion) || 0) / 100,
+      tasaIndep: (dec(el.tasaIndep) || 0) / 100,
+      cotIndep: el.cotIndep.checked
+    };
+  }
+
+  // Liquidación mensual a partir del bruto
+  function liquidar(bruto, apv, regimen, p) {
+    var imponible = Math.min(bruto, p.topeImp);
+    var afp = imponible * (0.10 + p.comision);
+    var saludLegal = imponible * 0.07;
+    var saludPagada = p.isapre ? Math.max(saludLegal, p.plan) : saludLegal;
+    var afc = p.afc ? Math.min(bruto, p.topeAfc) * 0.006 : 0;
+    var apvDeducible = regimen === "B" ? Math.min(apv, p.topeApv) : 0;
+
+    var rli = Math.max(0, bruto - afp - saludLegal - afc - apvDeducible);
+    var impuesto = impuestoMensual(rli);
+    var liquido = bruto - afp - saludPagada - afc - apv - impuesto;
+
+    return {
+      bruto: bruto, imponible: imponible, afp: afp,
+      saludLegal: saludLegal, saludPagada: saludPagada, saludExtra: saludPagada - saludLegal,
+      afc: afc, apv: apv, apvDeducible: apvDeducible,
+      prevision: afp + saludPagada + afc,
+      rli: rli, impuesto: impuesto, liquido: liquido,
+      tramo: tramoDe(rli)
+    };
+  }
+
+  // Bruto a partir del líquido deseado (bisección — liquidar() es monótona)
+  function brutoDesdeLiquido(objetivo, apv, regimen, p) {
+    if (objetivo <= 0) return 0;
+    var lo = objetivo, hi = objetivo * 4 + apv * 12 + 1000000;
+    for (var i = 0; i < 80; i++) {
+      var mid = (lo + hi) / 2;
+      if (liquidar(mid, apv, regimen, p).liquido < objetivo) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  // Consolidado anual: sueldo + honorarios + APV
+  function anual(mes, honBrutoAnual, apvMensual, regimen, p) {
+    var baseSueldo = mes.rli * 12;
+
+    var gastos = Math.min(honBrutoAnual * 0.30, 15 * UTA);
+    var baseHon = Math.max(0, honBrutoAnual - gastos);
+    var retenido = honBrutoAnual * p.retencion;
+
+    var cot = 0, baseCot = 0;
+    if (p.cotIndep && honBrutoAnual > 0) {
+      var espacio = Math.max(0, p.topeImp * 12 - mes.imponible * 12);
+      baseCot = Math.min(honBrutoAnual * 0.80, espacio);
+      cot = baseCot * p.tasaIndep;
+    }
+
+    // APV régimen B que no alcanzó a descontarse por planilla (caso sin sueldo)
+    var apvB = regimen === "B" ? Math.min(apvMensual, p.topeApv) : 0;
+    var apvPendiente = Math.max(0, apvB * 12 - mes.apvDeducible * 12);
+
+    var baseGC = Math.max(0, baseSueldo + baseHon - cot - apvPendiente);
+    var gc = impuestoMensual(baseGC / 12) * 12;
+
+    var iusc = mes.impuesto * 12;
+    var creditos = iusc + retenido;
+    var caja = creditos - gc - cot;
+
+    return {
+      baseSueldo: baseSueldo, honBruto: honBrutoAnual, gastos: gastos, baseHon: baseHon,
+      retenido: retenido, baseCot: baseCot, cot: cot, apvPendiente: apvPendiente,
+      baseGC: baseGC, gc: gc, iusc: iusc, creditos: creditos, caja: caja,
+      impuestoTotal: gc
+    };
+  }
+
+  /* ---------------- Render ---------------- */
+  var COL = { liquido: "var(--teal)", apv: "var(--gold)", prev: "var(--blue)", imp: "var(--clay)" };
+
+  function render() {
+    var p = params();
+    var apv = num(el.apv);
+
+    // --- Sueldo ---
+    var entrada = num(el.sueldo);
+    var bruto = S.modoSueldo === "bruto" ? entrada : brutoDesdeLiquido(entrada, apv, S.regimen, p);
+    var m = liquidar(bruto, apv, S.regimen, p);
+
+    // --- Honorarios a bruto anual ---
+    var hEnt = num(el.honorarios);
+    var hBruto = S.modoHon === "bruto" ? hEnt : (p.retencion < 1 ? hEnt / (1 - p.retencion) : hEnt);
+    var honBrutoAnual = S.periodoHon === "anual" ? hBruto : hBruto * 12;
+
+    var a = anual(m, honBrutoAnual, apv, S.regimen, p);
+
+    // --- Escenarios de APV, siempre ambos, con el mismo bruto ---
+    // Sin APV, y con el aporte acogido al régimen B: la diferencia es el ahorro real de impuesto.
+    var mSin = liquidar(bruto, 0, "B", p);
+    var aSin = anual(mSin, honBrutoAnual, 0, "B", p);
+    var mConB = liquidar(bruto, apv, "B", p);
+    var aConB = anual(mConB, honBrutoAnual, apv, "B", p);
+
+    var apvAnual = apv * 12;
+    var ahorroB = Math.max(0, aSin.impuestoTotal - aConB.impuestoTotal);
+    var bonoA = Math.min(0.15 * apvAnual, 6 * UTM);
+
+    pintarStrip(m, a, honBrutoAnual, p);
+    pintarBarra(m);
+    pintarMes(m, p);
+    pintarApv({
+      apv: apv, apvAnual: apvAnual, ahorroB: ahorroB, bonoA: bonoA,
+      impSin: aSin.impuestoTotal, impConB: aConB.impuestoTotal, p: p
+    });
+    pintarAnual(a, honBrutoAnual, p);
+    pintarTramos(S.tramoAnual);
+  }
+
+  function pintarStrip(m, a, hon, p) {
+    var tasaEf = m.bruto > 0 ? m.impuesto / m.bruto : 0;
+    // Con boletas, el tramo que manda es el del Global Complementario, no el del sueldo solo.
+    var iTramo = hon > 0 ? tramoDe(a.baseGC / 12) : m.tramo;
+    var tramo = TABLA[iTramo];
+    var subTramo = hon > 0
+      ? "sumando sueldo y boletas"
+      : (iTramo > 0 ? "sobre el próximo peso" : "no pagas impuesto");
+
+    var caja = a.caja;
+    var cajaCls = hon > 0 ? (caja >= 0 ? "pos" : "neg") : "";
+    var cajaLbl = hon > 0 ? (caja >= 0 ? "Devolución en abril" : "A pagar en abril") : "Impuesto anual";
+    var cajaVal = hon > 0 ? $(Math.abs(caja)) : $(a.impuestoTotal);
+    var cajaSub = hon > 0
+      ? (caja >= 0 ? "te sobra de lo retenido" : "las boletas quedaron cortas")
+      : "12 meses de segunda categoría";
+
+    el.strip.innerHTML =
+      stat("Líquido del sueldo", $(m.liquido), "cada mes, a tu cuenta", "") +
+      stat("Impuesto mensual", $(m.impuesto), "tasa efectiva " + pct(tasaEf), "") +
+      stat("Tramo marginal", tramo.etq, subTramo, "") +
+      stat(cajaLbl, cajaVal, cajaSub, cajaCls);
+
+    S.tramoAnual = iTramo;
+
+    el.hdModo.textContent = S.modoSueldo === "bruto"
+      ? "bruto ingresado"
+      : "bruto calculado: " + $(m.bruto);
+  }
+
+  function stat(k, v, s, cls) {
+    return '<div class="stat ' + cls + '"><span class="k">' + k + '</span>' +
+           '<span class="v">' + v + '</span><span class="s">' + s + '</span></div>';
+  }
+
+  function pintarBarra(m) {
+    var segs = [
+      { nm: "Líquido",   val: Math.max(0, m.liquido), c: COL.liquido },
+      { nm: "APV",       val: m.apv,                  c: COL.apv },
+      { nm: "Previsión", val: m.prevision,            c: COL.prev },
+      { nm: "Impuesto",  val: m.impuesto,             c: COL.imp }
+    ].filter(function (s) { return s.val > 0; });
+
+    var total = segs.reduce(function (t, s) { return t + s.val; }, 0) || 1;
+
+    el.bar.innerHTML = segs.map(function (s) {
+      return '<i style="flex-grow:' + s.val + ';background:' + s.c + '" title="' + s.nm + ' ' + $(s.val) + '"></i>';
+    }).join("");
+
+    el.legend.innerHTML = segs.map(function (s) {
+      return '<span class="li"><span class="sw" style="background:' + s.c + '"></span>' +
+             '<span class="nm">' + s.nm + '</span>' +
+             '<span class="am">' + $(s.val) + '</span>' +
+             '<span class="pc">' + pct(s.val / total) + '</span></span>';
+    }).join("");
+  }
+
+  function fila(nombre, valor, opts) {
+    opts = opts || {};
+    var cls = opts.cls ? ' class="' + opts.cls + '"' : "";
+    var nCls = "n" + (opts.color ? " " + opts.color : "");
+    return '<tr' + cls + '><td' + (opts.sub ? ' class="sub"' : "") + '>' + nombre + '</td>' +
+           '<td class="tag">' + (opts.tag || "") + '</td>' +
+           '<td class="' + nCls + '">' + valor + '</td></tr>';
+  }
+
+  function pintarMes(m, p) {
+    var h = "";
+    h += fila("Sueldo bruto", $(m.bruto), { tag: m.imponible < m.bruto ? "imponible " + $(m.imponible) : "" });
+    h += fila("AFP + comisión", "−" + $(m.afp), { sub: true, cls: "rule", tag: pct(0.10 + p.comision, 2), color: "neg" });
+    h += fila(p.isapre ? "Salud (7% legal)" : "Salud — Fonasa", "−" + $(m.saludLegal), { sub: true, tag: "7%", color: "neg" });
+    if (m.saludExtra > 0.5) h += fila("Plan isapre sobre el 7%", "−" + $(m.saludExtra), { sub: true, tag: "no deducible", color: "neg" });
+    if (m.afc > 0) h += fila("Seguro de cesantía", "−" + $(m.afc), { sub: true, tag: "0,6%", color: "neg" });
+    if (m.apv > 0) h += fila("APV — régimen " + S.regimen, "−" + $(m.apv), { sub: true, tag: S.regimen === "B" ? "rebaja base" : "sin rebaja", color: "neg" });
+
+    h += fila("<b>Renta líquida imponible</b>", "<b>" + $(m.rli) + "</b>", { cls: "rule", tag: "base del impuesto" });
+    h += fila("Impuesto único", "−" + $(m.impuesto), {
+      sub: true,
+      tag: m.tramo === 0 ? "exento" : pct(TABLA[m.tramo].f, 1) + " − " + $(TABLA[m.tramo].r),
+      color: "neg"
+    });
+    h += fila("Sueldo líquido", $(m.liquido), { cls: "total", color: "posv" });
+
+    el.tablaMes.innerHTML = h;
+  }
+
+  function pintarApv(x) {
+    var apv = x.apv, apvAnual = x.apvAnual, ahorroB = x.ahorroB, bonoA = x.bonoA, p = x.p;
+
+    if (apv <= 0) {
+      el.hdApv.textContent = "sin aporte";
+      el.bdApv.innerHTML = '<p class="empty">Pon un monto de APV arriba para ver cuánto impuesto te ahorra y cuánto te cuesta de verdad.</p>';
+      return;
+    }
+
+    el.hdApv.textContent = "régimen " + S.regimen;
+
+    var ahorroMes = ahorroB / 12;
+    var retorno = ahorroB / apvAnual;
+    var mejorB = ahorroB >= bonoA;
+    var h = "";
+
+    if (S.regimen === "B") {
+      h += '<div class="callout ' + (ahorroB > 0 ? "good" : "warn") + '">' +
+           '<span class="hd">' + (ahorroB > 0
+              ? "Aportas " + $(apv) + " al mes y te cuesta " + $(apv - ahorroMes) + ""
+              : "Con esta renta el régimen B no te rebaja nada") + '</span>' +
+           (ahorroB > 0
+              ? "El fisco pone la diferencia: <b>" + $(ahorroMes) + "</b> al mes, <b>" + $(ahorroB) + "</b> al año. Es un <b>" + pct(retorno) + "</b> de retorno inmediato sobre lo aportado, antes de cualquier rentabilidad del fondo."
+              : "Tu base imponible queda en tramo exento, así que descontar el aporte no baja el impuesto. El régimen A sí te sirve.") +
+           '</div>';
+    } else {
+      h += '<div class="callout gold">' +
+           '<span class="hd">El Estado te deposita ' + $(bonoA) + ' al año en el fondo</span>' +
+           'Es el 15% de tu aporte anual de <b>' + $(apvAnual) + '</b>' +
+           (0.15 * apvAnual > 6 * UTM ? ", topado en 6 UTM (<b>" + $(6 * UTM) + "</b>)" : "") +
+           '. Esa plata queda dentro del APV, no en tu bolsillo, y no rebaja tu impuesto.' +
+           '</div>';
+    }
+
+    h += '<table class="ledger">' + fila("Aporte anual al APV", $(apvAnual), { tag: $(apv) + "/mes" });
+
+    if (S.regimen === "B") {
+      h += fila("Impuesto del año sin APV", $(x.impSin), { sub: true, cls: "rule" }) +
+           fila("Impuesto del año con APV", $(x.impConB), { sub: true }) +
+           fila("<b>Ahorro de impuesto</b>", "<b>" + $(ahorroB) + "</b>", { cls: "rule", color: "posv" }) +
+           fila("Costo real de tu bolsillo", $(apvAnual - ahorroB), { cls: "total" });
+    } else {
+      h += fila("Bonificación del Estado", "+" + $(bonoA), { sub: true, cls: "rule", tag: "15%, tope 6 UTM", color: "posv" }) +
+           fila("Impuesto del año", $(x.impSin), { sub: true, tag: "no cambia" }) +
+           fila("Entra al fondo", $(apvAnual + bonoA), { cls: "total", color: "posv" });
+    }
+    h += '</table>';
+
+    h += '<div class="duo">' +
+         '<div class="regbox' + (mejorB ? " win" : "") + '"><span class="rt">Régimen B — rebaja base</span>' +
+         '<span class="rv">' + $(ahorroB) + '</span>' +
+         '<span class="rd">Menos impuesto al año. Te llega como mayor líquido mes a mes.</span>' +
+         (mejorB ? '<span class="badge">Te conviene</span>' : "") + '</div>' +
+         '<div class="regbox' + (!mejorB ? " win" : "") + '"><span class="rt">Régimen A — bono 15%</span>' +
+         '<span class="rv">' + $(bonoA) + '</span>' +
+         '<span class="rd">Aporte del Estado al fondo, al año. Tope 6 UTM (' + $(6 * UTM) + ').</span>' +
+         (!mejorB ? '<span class="badge">Te conviene</span>' : "") + '</div>' +
+         '</div>';
+
+    if (S.regimen === "B" && apv > p.topeApv) {
+      h += '<div class="callout warn"><span class="hd">Estás sobre el tope del régimen B</span>' +
+           'Solo <b>' + $(p.topeApv) + '</b> al mes (50 UF) rebajan la base por planilla. El exceso de <b>' + $(apv - p.topeApv) + '</b> no descuenta impuesto en este cálculo.</div>';
+    }
+
+    el.bdApv.innerHTML = h;
+  }
+
+  function pintarAnual(a, hon, p) {
+    var h = "";
+    h += fila("Base del sueldo", $(a.baseSueldo), { tag: "12 × renta imponible" });
+
+    if (hon > 0) {
+      h += fila("Boletas brutas", $(a.honBruto), { cls: "rule", tag: $(a.honBruto / 12) + "/mes" });
+      h += fila("Gastos presuntos 30%", "−" + $(a.gastos), { sub: true, tag: a.gastos >= 15 * UTA ? "tope 15 UTA" : "", color: "neg" });
+      h += fila("Base de honorarios", $(a.baseHon), { sub: true });
+      if (a.cot > 0) h += fila("Cotizaciones de independiente", "−" + $(a.cot), { sub: true, tag: pct(p.tasaIndep, 1) + " sobre 80%", color: "neg" });
+    }
+    if (a.apvPendiente > 0) h += fila("APV régimen B no descontado en planilla", "−" + $(a.apvPendiente), { sub: true, color: "neg" });
+
+    h += fila("<b>Base Global Complementario</b>", "<b>" + $(a.baseGC) + "</b>", { cls: "rule" });
+    h += fila("Impuesto Global Complementario", $(a.gc), { sub: true, tag: TABLA[tramoDe(a.baseGC / 12)].etq });
+    h += fila("Impuesto único ya pagado", "−" + $(a.iusc), { sub: true, cls: "rule", tag: "descontado del sueldo", color: "posv" });
+    if (hon > 0) h += fila("Retenciones de boletas", "−" + $(a.retenido), { sub: true, tag: pct(p.retencion, 2), color: "posv" });
+    if (a.cot > 0) h += fila("Cotizaciones a enterar", "+" + $(a.cot), { sub: true, tag: "se pagan con la retención", color: "neg" });
+
+    var etq = a.caja >= 0 ? "Devolución en abril 2027" : "A pagar en abril 2027";
+    h += fila("<b>" + etq + "</b>", "<b>" + $(Math.abs(a.caja)) + "</b>", { cls: "total", color: a.caja >= 0 ? "posv" : "neg" });
+
+    el.tablaAnual.innerHTML = h;
+
+    if (hon <= 0) {
+      el.resultadoAnual.innerHTML =
+        '<p class="note">Con solo sueldo, lo retenido mes a mes calza con el impuesto anual: no hay devolución ni pago. Si agregas boletas, aquí verás la diferencia.</p>';
+    } else if (a.caja >= 0) {
+      el.resultadoAnual.innerHTML =
+        '<div class="callout good"><span class="hd">Te devuelven ' + $(a.caja) + '</span>' +
+        'Entre el impuesto del sueldo y el ' + pct(p.retencion, 2) + ' retenido en las boletas ya adelantaste <b>' + $(a.creditos) + '</b>' +
+        (a.cot > 0 ? ', y de ahí salen <b>' + $(a.cot) + '</b> de cotizaciones' : '') +
+        '. El impuesto real del año fue <b>' + $(a.gc) + '</b>.</div>';
+    } else {
+      el.resultadoAnual.innerHTML =
+        '<div class="callout warn"><span class="hd">Tienes que pagar ' + $(Math.abs(a.caja)) + '</span>' +
+        'Las boletas se suman al sueldo y te empujan a un tramo más alto, pero solo retienen ' + pct(p.retencion, 2) +
+        (a.cot > 0 ? ' y esa retención además financia <b>' + $(a.cot) + '</b> de cotizaciones' : '') +
+        '. Guardando <b>' + $(Math.abs(a.caja) / 12) + '</b> al mes llegas cubierto a abril.</div>';
+    }
+  }
+
+  function pintarTramos(activo) {
+    var h = '<thead><tr><th>Tramo</th><th>Desde</th><th>Hasta</th><th>Factor</th><th>Rebaja</th></tr></thead><tbody>';
+    for (var i = 0; i < TABLA.length; i++) {
+      var t = TABLA[i];
+      var desde = i === 0 ? "—" : $(TABLA[i - 1].hasta);
+      var hasta = t.hasta === Infinity ? "y más" : $(t.hasta);
+      h += '<tr class="' + (i === activo ? "on" : "") + '">' +
+           '<td>' + t.etq + '</td><td>' + desde + '</td><td>' + hasta + '</td>' +
+           '<td>' + (t.f === 0 ? "—" : t.f.toString().replace(".", ",")) + '</td>' +
+           '<td>' + (t.r === 0 ? "—" : $(t.r)) + '</td></tr>';
+    }
+    return el.tablaTramos.innerHTML = h + "</tbody>";
+  }
+
+  /* ---------------- Inputs de dinero con formato en vivo ---------------- */
+  function formatearMoneda(input) {
+    var crudo = input.value;
+    var pos = input.selectionStart || 0;
+    var digitosAntes = crudo.slice(0, pos).replace(/\D/g, "").length;
+    var digitos = crudo.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+    var salida = digitos ? nf.format(Number(digitos)) : "";
+    input.value = salida;
+
+    var vistos = 0, caret = salida.length;
+    if (digitosAntes === 0) caret = 0;
+    else for (var i = 0; i < salida.length; i++) {
+      if (/\d/.test(salida[i])) { vistos++; if (vistos === digitosAntes) { caret = i + 1; break; } }
+    }
+    try { input.setSelectionRange(caret, caret); } catch (e) {}
+  }
+
+  ["sueldo", "plan", "honorarios", "apv"].forEach(function (id) {
+    el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
+    el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
+  });
+
+  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv"].forEach(function (id) {
+    el[id].addEventListener("input", render);
+  });
+
+  el.afp.addEventListener("change", function () {
+    el.comision.value = (Number(el.afp.value) * 100).toFixed(2);
+    render();
+  });
+  el.comision.addEventListener("input", function () {
+    var v = (dec(el.comision) / 100).toFixed(4);
+    el.afp.value = Array.prototype.some.call(el.afp.options, function (o) { return o.value === v; }) ? v : el.afp.value;
+  });
+
+  el.isapre.addEventListener("change", function () {
+    el.wrapPlan.hidden = !el.isapre.checked;
+    render();
+  });
+  el.afc.addEventListener("change", render);
+  el.cotIndep.addEventListener("change", render);
+
+  /* ---------------- Segmentados ---------------- */
+  function segmentado(contenedor, onCambio) {
+    contenedor.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b || b.getAttribute("aria-pressed") === "true") return;
+      Array.prototype.forEach.call(contenedor.querySelectorAll("button"), function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      onCambio(b.dataset.v);
+    });
+  }
+
+  segmentado(document.getElementById("segSueldo"), function (v) {
+    // Mantener la continuidad: al cambiar de bruto a líquido (o al revés) traspasamos el valor calculado.
+    var p = params(), apv = num(el.apv), actual = num(el.sueldo);
+    if (v === "liquido" && S.modoSueldo === "bruto") {
+      el.sueldo.value = nf.format(Math.round(Math.max(0, liquidar(actual, apv, S.regimen, p).liquido)));
+    } else if (v === "bruto" && S.modoSueldo === "liquido") {
+      el.sueldo.value = nf.format(Math.round(brutoDesdeLiquido(actual, apv, S.regimen, p)));
+    }
+    S.modoSueldo = v;
+    render();
+  });
+
+  segmentado(document.getElementById("segHonMonto"), function (v) {
+    var p = params(), actual = num(el.honorarios);
+    if (actual > 0 && p.retencion < 1) {
+      el.honorarios.value = nf.format(Math.round(
+        v === "liquido" ? actual * (1 - p.retencion) : actual / (1 - p.retencion)
+      ));
+    }
+    S.modoHon = v;
+    render();
+  });
+
+  segmentado(document.getElementById("segHonPeriodo"), function (v) {
+    var actual = num(el.honorarios);
+    if (actual > 0) el.honorarios.value = nf.format(Math.round(v === "anual" ? actual * 12 : actual / 12));
+    S.periodoHon = v;
+    render();
+  });
+
+  segmentado(document.getElementById("segApv"), function (v) { S.regimen = v; render(); });
+
+  render();
+})();
+</script>
+
+<script>
+(function () {
+  var raiz = document.documentElement;
+  var btn = document.getElementById("themebtn");
+  var ico = document.getElementById("themeicon");
+  var txt = document.getElementById("themetxt");
+  var LLAVE = "simulador-renta-tema";
+
+  function aplicar(t) {
+    if (t) raiz.setAttribute("data-theme", t); else raiz.removeAttribute("data-theme");
+    var oscuro = t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches);
+    ico.textContent = oscuro ? "☀" : "☾";
+    txt.textContent = oscuro ? "Claro" : "Oscuro";
+  }
+
+  var guardado = null;
+  try { guardado = localStorage.getItem(LLAVE); } catch (e) {}
+  aplicar(guardado);
+
+  btn.addEventListener("click", function () {
+    var oscuroAhora = raiz.getAttribute("data-theme") === "dark" ||
+      (!raiz.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+    var nuevo = oscuroAhora ? "light" : "dark";
+    aplicar(nuevo);
+    try { localStorage.setItem(LLAVE, nuevo); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>
