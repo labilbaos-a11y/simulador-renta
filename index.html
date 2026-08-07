@@ -290,6 +290,39 @@
   }
   footer b { color: var(--ink-2); font-weight: 650; }
 
+  /* ---------- celular ----------
+     Sin min-width:0 los hijos del grid se estiran al min-content de la tabla de
+     tramos (480px) y toda la página se sale de la pantalla, cortando los montos. */
+  .panel-col, .results, .card, .card-bd, .scroll { min-width: 0; }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 20px 14px 48px; }
+    .card-hd { padding: 12px 14px; }
+    .card-bd { padding: 14px; gap: 13px; }
+
+    /* Los segmentados no caben al lado de su etiqueta: van abajo y a lo ancho. */
+    .row-split { flex-direction: column; align-items: stretch; gap: 7px; }
+    .seg { width: 100%; }
+    .seg button { flex: 1; text-align: center; padding: 7px 6px; }
+
+    /* Ledger a dos líneas: nombre arriba, dato auxiliar debajo, monto a la derecha. */
+    .ledger tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; padding: 7px 0; }
+    .ledger td { padding: 0; }
+    .ledger td:first-child { grid-column: 1; grid-row: 1; }
+    .ledger td.tag { grid-column: 1; grid-row: 2; padding-left: 0; font-size: 10.5px; line-height: 1.45; }
+    .ledger td.tag:empty { display: none; }
+    .ledger td.n { grid-column: 2; grid-row: 1 / -1; align-self: center; padding-left: 0; }
+    .ledger td.sub { padding-left: 12px; }
+    .ledger td.sub + td.tag { padding-left: 12px; }
+    .ledger tr.rule > *, .ledger tr.total > * { border-top: 0; padding-top: 0; }
+    .ledger tr.rule { border-top: 1px solid var(--line-soft); }
+    .ledger tr.total { border-top: 2px solid var(--ink); padding-top: 9px; }
+
+    .legend { gap: 5px 14px; }
+    .stat { padding: 11px 13px 12px; }
+    .params-grid { gap: 9px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -304,7 +337,10 @@
   }
   .themebtn:hover { border-color: var(--ink-3); color: var(--ink); }
   .themebtn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-  @media (max-width: 520px) { .masthead { padding-right: 0; } .themebtn { position: static; margin-bottom: 10px; } }
+  @media (max-width: 560px) {
+    .masthead { padding-right: 0; }
+    .themebtn { position: static; display: flex; width: max-content; margin: 0 0 12px auto; }
+  }
 
 </style>
 </head>
