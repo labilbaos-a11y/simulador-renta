@@ -349,6 +349,8 @@
   .comp tr.glosa td i { font-style: normal; }
   /* La glosa es texto, no cifras: dejarla envolver para que no estire la tabla. */
   .comp tr.glosa td.n { white-space: normal; font-family: var(--sans); }
+  /* Igual para las filas cuyo valor es un nombre y no un monto. */
+  .comp tr.txt td.n { white-space: normal; }
 
   /* Segmentado a lo ancho: el régimen se elige mal si los botones dicen solo "A" y "B". */
   .seg.ancho { width: 100%; }
@@ -415,9 +417,15 @@
       <section class="card">
         <div class="card-hd"><h2>Titular</h2></div>
         <div class="card-bd">
-          <div class="field">
-            <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
-            <input type="text" id="fechaNac" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="bday" value="">
+          <div class="row2">
+            <div class="field">
+              <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
+              <input type="text" id="fechaNac" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="bday" value="">
+            </div>
+            <div class="field">
+              <label class="lbl" for="edadRetiro">Se pensiona a los</label>
+              <input type="number" id="edadRetiro" step="1" min="40" max="90" value="65">
+            </div>
           </div>
           <p class="note" id="notaEdad">Escríbela como dd-mm-aaaa, por ejemplo 15-02-1974.</p>
         </div>
@@ -464,6 +472,13 @@
           </div>
 
           <label class="check"><input type="checkbox" id="afc" checked> Contrato indefinido — cotizo AFC (0,6%)</label>
+
+          <div class="divider"></div>
+          <div class="field">
+            <label class="lbl" for="bonos">Bonos del año</label>
+            <span class="money"><span>$</span><input type="text" id="bonos" inputmode="numeric" value="0" aria-label="Suma de los bonos del año"></span>
+            <p class="note">Suma manual de todos los bonos, gratificaciones y aguinaldos del año. Complementan la renta y pagan impuesto aparte.</p>
+          </div>
         </div>
       </section>
 
@@ -510,6 +525,18 @@
             <span class="money"><span>$</span><input type="text" id="seguroFuera" inputmode="numeric" value="0" aria-label="Prima mensual del seguro contratado por fuera"></span>
             <p class="note">Contratado aparte del APV: <b>no rebaja impuesto</b>, sale entero del líquido.</p>
           </div>
+
+          <div class="divider"></div>
+          <div class="row2">
+            <div class="field">
+              <label class="lbl" for="fondoHoy">Dónde está invertido</label>
+              <select id="fondoHoy"></select>
+            </div>
+            <div class="field">
+              <label class="lbl" for="tasaHoy">Real anual %</label>
+              <input type="number" id="tasaHoy" step="0.01" value="3.23">
+            </div>
+          </div>
         </div>
       </section>
 
@@ -531,6 +558,23 @@
             <label class="lbl" for="seguroApv">Seguro de vida dentro del APV</label>
             <span class="money"><span>$</span><input type="text" id="seguroApv" inputmode="numeric" value="0" aria-label="Prima mensual del seguro acogido a APV"></span>
             <p class="note">La prima va dentro del producto APV: <b>sí rebaja impuesto</b> y se suma al aporte.</p>
+          </div>
+
+          <div class="divider"></div>
+          <div class="row2">
+            <div class="field">
+              <label class="lbl" for="fondoProp">Dónde se invertiría</label>
+              <select id="fondoProp"></select>
+            </div>
+            <div class="field">
+              <label class="lbl" for="tasaProp">Real anual %</label>
+              <input type="number" id="tasaProp" step="0.01" value="3.46">
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="costoProd">Costo del producto (% anual)</label>
+            <input type="number" id="costoProd" step="0.1" value="0">
+            <p class="note">Lo que el seguro con APV descuenta del fondo cada año por cobertura y cargos. Déjalo en 0 si comparas solo fondos.</p>
           </div>
         </div>
       </section>
@@ -590,6 +634,22 @@
         <div class="card-bd">
           <div class="scroll"><table class="comp" id="tablaCosto"></table></div>
           <div id="veredicto"></div>
+        </div>
+      </section>
+
+      <section class="card" id="cardBonos" hidden>
+        <div class="card-hd"><h2>Bonos del año</h2><span class="hint">complemento de renta</span></div>
+        <div class="card-bd">
+          <div class="scroll"><table class="comp" id="tablaBonos"></table></div>
+          <div id="notaBonos"></div>
+        </div>
+      </section>
+
+      <section class="card" id="cardProy">
+        <div class="card-hd"><h2>Proyección al retiro</h2><span class="hint" id="hdProy"></span></div>
+        <div class="card-bd">
+          <div class="scroll"><table class="comp" id="tablaProy"></table></div>
+          <div id="avisoProy"></div>
         </div>
       </section>
 
@@ -659,6 +719,33 @@
   var MESES = ["enero","febrero","marzo","abril","mayo","junio",
                "julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
+  /* ---------------- Fondos ----------------
+     Rentabilidad REAL anualizada 2021-2025 (5 años calendario completos), deflactada por UF.
+     Fuente: Superintendencia de Pensiones. Los fondos de AFP van netos de la comisión de
+     administración de APV (0,6% anual sobre saldo en Cuprum).
+     El garantizado NO es histórico: es tasa contractual, y por eso es el único que no
+     depende de que el pasado se repita. */
+  var COM_APV_AFP = 0.6;
+  var FONDOS = [
+    { id: "cupA", nom: "Cuprum Fondo A",        bruto: 3.83, com: COM_APV_AFP, hist: true },
+    { id: "cupB", nom: "Cuprum Fondo B",        bruto: 3.17, com: COM_APV_AFP, hist: true },
+    { id: "cupC", nom: "Cuprum Fondo C",        bruto: 1.24, com: COM_APV_AFP, hist: true },
+    { id: "cupD", nom: "Cuprum Fondo D",        bruto: 0.20, com: COM_APV_AFP, hist: true },
+    { id: "cupE", nom: "Cuprum Fondo E",        bruto: 0.17, com: COM_APV_AFP, hist: true },
+    { id: "sisA", nom: "Promedio sistema — A",  bruto: 3.75, com: COM_APV_AFP, hist: true },
+    { id: "sisC", nom: "Promedio sistema — C",  bruto: 1.16, com: COM_APV_AFP, hist: true },
+    { id: "pbAgr", nom: "Santander PB Agresivo", bruto: 3.46, com: 0, hist: true },
+    { id: "pbEq",  nom: "Santander PB Equilibrio", bruto: 2.06, com: 0, hist: true },
+    { id: "gar",   nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false },
+    { id: "man",   nom: "Otro — tasa manual",   bruto: null, com: 0, hist: true }
+  ];
+  function buscarFondo(id) { for (var i = 0; i < FONDOS.length; i++) if (FONDOS[i].id === id) return FONDOS[i]; return null; }
+  function tasaNeta(f) { return f.bruto === null ? null : Math.round((f.bruto - f.com) * 100) / 100; }
+
+  // El garantizado paga 1,5% real hasta el 31-05-2029 y 1,0% desde ahí.
+  var GAR_ALTA = 0.015, GAR_BAJA = 0.010, GAR_CORTE = 2029 + 5 / 12;
+  function hoyDecimal() { var d = new Date(); return d.getFullYear() + d.getMonth() / 12; }
+
   /* ---------------- Estado ---------------- */
   var S = { modoSueldo: "bruto", modoHon: "bruto", periodoHon: "mensual", regHoy: "B", regProp: "B" };
 
@@ -667,8 +754,22 @@
    "honorarios","cotIndep","apvHoy","seguroFuera","apvProp","seguroApv",
    "uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
    "strip","hdModo","notaSueldo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
-   "cardAnual","tablaAnual","resultadoAnual","tablaTramos"
+   "cardAnual","tablaAnual","resultadoAnual","tablaTramos",
+   "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
+   "fondoHoy","tasaHoy","fondoProp","tasaProp","costoProd",
+   "cardProy","hdProy","tablaProy","avisoProy"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  // Poblar los dos selectores de fondo con el catálogo
+  [["fondoHoy", "cupA"], ["fondoProp", "pbAgr"]].forEach(function (par) {
+    el[par[0]].innerHTML = FONDOS.map(function (f) {
+      var t = tasaNeta(f);
+      var etq = f.id === "gar" ? "MetLife Garantizado — 1,5% / 1,0%"
+              : f.id === "man" ? "Otro — tasa manual"
+              : f.nom + " — " + t.toFixed(2).replace(".", ",") + "%";
+      return '<option value="' + f.id + '"' + (f.id === par[1] ? " selected" : "") + ">" + etq + "</option>";
+    }).join("");
+  });
 
   function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
   function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
@@ -695,7 +796,25 @@
     if (anios < 0) return { error: "futura" };
     if (anios < 18) return { error: "menor" };
     if (anios > 110) return { error: "rango" };
-    return { nac: nac, cumplida: Math.floor(anios), actuarial: Math.round(anios) };
+    var retiro = Math.min(90, Math.max(40, Math.round(dec(el.edadRetiro) || 65)));
+    return {
+      nac: nac, cumplida: Math.floor(anios), actuarial: Math.round(anios),
+      retiro: retiro, aniosRestantes: Math.max(0, retiro - anios)
+    };
+  }
+
+  /* Acumula aportes mensuales a una tasa real. El garantizado cambia de tasa en 2029,
+     así que se evalúa mes a mes en vez de aplicar un promedio. */
+  function acumular(aporteMes, fondoId, tasaManual, costoAnual, anios) {
+    var meses = Math.round(anios * 12), v = 0, t0 = hoyDecimal();
+    for (var i = 0; i < meses; i++) {
+      var bruta = fondoId === "gar"
+        ? (t0 + i / 12 < GAR_CORTE ? GAR_ALTA : GAR_BAJA)
+        : tasaManual / 100;
+      var neta = Math.max(-0.99, bruta - (costoAnual || 0) / 100);
+      v = (v + aporteMes) * Math.pow(1 + neta, 1 / 12);
+    }
+    return v;
   }
 
   /* ---------------- Motor tributario ---------------- */
@@ -819,6 +938,8 @@
     pintarStrip(A, B, hayProp, honAnual);
     pintarLiquidacion(A, B, hayProp, p);
     pintarCosto(A, B, hayProp);
+    pintarBonos(A, B, hayProp, p);
+    pintarProyeccion(A, B, hayProp);
     pintarRegimen(A, B, hayProp, p);
     pintarAnual(A.a, honAnual, p);
     pintarTramos(honAnual > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo);
@@ -956,6 +1077,83 @@
     }
   }
 
+  /* Los bonos se gravan aparte del sueldo. Se tratan como renta anual adicional sobre la
+     base ya formada, que es como termina quedando después de la reliquidación de abril. */
+  function pintarBonos(A, B, hayProp, p) {
+    var bono = num(el.bonos);
+    el.cardBonos.hidden = bono <= 0;
+    if (bono <= 0) return;
+
+    function calc(X) {
+      var baseSin = X.m.rli * 12;
+      var impSin = impuestoMensual(baseSin / 12) * 12;
+      var impCon = impuestoMensual((baseSin + bono) / 12) * 12;
+      return { impBono: impCon - impSin, neto: bono - (impCon - impSin), tramo: TABLA[tramoDe((baseSin + bono) / 12)] };
+    }
+    var a = calc(A), b = hayProp ? calc(B) : null;
+    var d = function (f) { return hayProp ? f(b) : null; };
+
+    var h = encabezado(hayProp) + "<tbody>";
+    h += filaComp("Bonos del año", $(bono), hayProp ? $(bono) : null);
+    h += filaComp("Impuesto que pagan", "−" + $(a.impBono), d(function (x) { return "−" + $(x.impBono); }), { sub: true, cls: "rule", color: "neg" });
+    h += filaComp("Tramo que los grava", a.tramo.etq, d(function (x) { return x.tramo.etq; }), { sub: true });
+    h += filaComp("<b>Te queda del bono</b>", "<b>" + $(a.neto) + "</b>", d(function (x) { return "<b>" + $(x.neto) + "</b>"; }), { cls: "total", color: "posv" });
+    el.tablaBonos.innerHTML = h + "</tbody>";
+
+    var ahorra = hayProp ? a.impBono - b.impBono : 0;
+    var topeAnual = p.topeApv * 12, usaHoy = A.apvTotal * 12;
+    el.notaBonos.innerHTML = (ahorra > 0
+        ? '<div class="callout good"><span class="hd">Con la propuesta el bono paga ' + $(ahorra) + ' menos de impuesto</span>' +
+          'Al rebajar más la base, el bono cae en un tramo más bajo.</div>'
+        : '') +
+      '<p class="note">Cabe <b>' + $(Math.max(0, topeAnual - usaHoy)) + '</b> más de APV al año dentro del tope del régimen B (' +
+      $(topeAnual) + ' anuales). Subir el aporte es la vía para rebajar el impuesto del bono.</p>';
+  }
+
+  /* Proyección al retiro. Las tasas son históricas de los últimos 5 años —salvo el
+     garantizado, que es contractual— y eso queda dicho en la propia tarjeta. */
+  function pintarProyeccion(A, B, hayProp) {
+    var ed = edades();
+    if (!ed || ed.error) {
+      el.hdProy.textContent = "sin fecha";
+      el.tablaProy.innerHTML = "";
+      el.avisoProy.innerHTML = '<p class="empty">Pon la fecha de nacimiento arriba para proyectar cuánto acumula el ahorro hasta la jubilación.</p>';
+      return;
+    }
+    var n = ed.aniosRestantes;
+    el.hdProy.textContent = "a los " + ed.retiro + " años";
+
+    var fHoy = el.fondoHoy.value, fProp = el.fondoProp.value;
+    var costo = dec(el.costoProd);
+    // Solo el aporte se acumula: la prima del seguro compra cobertura, no capital.
+    var saldoA = acumular(A.aporte, fHoy, dec(el.tasaHoy), 0, n);
+    var saldoB = hayProp ? acumular(B.aporte, fProp, dec(el.tasaProp), costo, n) : 0;
+    var puestoA = A.aporte * Math.round(n * 12), puestoB = B.aporte * Math.round(n * 12);
+    var d = function (v) { return hayProp ? v : null; };
+
+    var h = encabezado(hayProp) + "<tbody>";
+    h += filaComp("Fondo", buscarFondo(fHoy).nom, d(buscarFondo(fProp).nom), { cls: "txt" });
+    h += filaComp("Rentabilidad real usada",
+      fHoy === "gar" ? "1,5% → 1,0%" : pct(dec(el.tasaHoy) / 100, 2),
+      d(fProp === "gar" ? "1,5% → 1,0%" : pct((dec(el.tasaProp) - costo) / 100, 2)), { sub: true, cls: "txt" });
+    h += filaComp("Aporte mensual", $(A.aporte), d($(B.aporte)), { sub: true, cls: "rule" });
+    h += filaComp("Años hasta los " + ed.retiro, n.toFixed(1).replace(".", ",") + " años",
+      d(n.toFixed(1).replace(".", ",") + " años"), { sub: true });
+    h += filaComp("Total que habrá aportado", $(puestoA), d($(puestoB)), { sub: true });
+    h += filaComp("<b>Saldo al retiro</b>", "<b>" + $(saldoA) + "</b>", d("<b>" + $(saldoB) + "</b>"), { cls: "total", color: "posv" });
+    el.tablaProy.innerHTML = h + "</tbody>";
+
+    var garantizado = fHoy === "gar" || fProp === "gar";
+    el.avisoProy.innerHTML =
+      '<div class="callout warn"><span class="hd">Rentabilidades de los últimos 5 años</span>' +
+      'Son el promedio real anualizado 2021–2025, ya descontada la inflación. <b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
+      (garantizado
+        ? ' La única excepción es el <b>Fondo Garantizado de MetLife</b>: su 1,5% hasta mayo de 2029 y 1,0% desde entonces son tasa contractual, no proyección.'
+        : ' Ninguno de los fondos comparados aquí garantiza su tasa.') +
+      '</div>' +
+      (costo > 0 ? '<p class="note">La columna propuesta va neta del ' + pct(costo / 100, 1) + ' anual de costo del producto.</p>' : "");
+  }
+
   function pintarRegimen(A, B, hayProp, p) {
     var X = hayProp ? B : A;
     if (X.apvTotal <= 0) {
@@ -1051,15 +1249,26 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv"].forEach(function (id) {
+  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv", "bonos"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
 
-  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv"].forEach(function (id) {
+  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
+   "edadRetiro", "tasaHoy", "tasaProp", "costoProd"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
   el.fechaNac.addEventListener("input", render);
+
+  // Elegir un fondo rellena su tasa; después se puede editar a mano.
+  [["fondoHoy", "tasaHoy"], ["fondoProp", "tasaProp"]].forEach(function (par) {
+    el[par[0]].addEventListener("change", function () {
+      var f = buscarFondo(el[par[0]].value), t = tasaNeta(f);
+      if (t !== null) el[par[1]].value = t;
+      el[par[1]].disabled = (f.id === "gar");
+      render();
+    });
+  });
 
   el.afp.addEventListener("change", function () {
     el.comision.value = (Number(el.afp.value) * 100).toFixed(2);
