@@ -410,6 +410,30 @@
           </div>
 
           <label class="check"><input type="checkbox" id="afc" checked> Contrato indefinido — cotizo AFC (0,6%)</label>
+
+          <div class="divider"></div>
+          <div class="row2">
+            <div class="field">
+              <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
+              <input type="date" id="fechaNac" value="">
+            </div>
+            <div class="field">
+              <label class="lbl" for="edadRetiro">Se pensiona a los</label>
+              <input type="number" id="edadRetiro" step="1" min="40" max="90" value="65">
+            </div>
+          </div>
+          <p class="note" id="notaEdad">Opcional. Sirve para proyectar cuánto acumula el APV hasta la jubilación.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>Seguro de vida</h2><span class="hint">fuera del APV</span></div>
+        <div class="card-bd">
+          <div class="field">
+            <label class="lbl" for="seguroVida">Prima mensual que paga aparte</label>
+            <span class="money"><span>$</span><input type="text" id="seguroVida" inputmode="numeric" value="0" aria-label="Prima mensual del seguro de vida contratado por fuera"></span>
+          </div>
+          <p class="note">Un seguro de vida contratado por fuera <b>no rebaja impuesto</b>: sale entero del líquido. Dentro de un seguro con APV, en cambio, la prima sí es deducible. Poner el monto acá permite comparar el gasto real de ambas alternativas.</p>
         </div>
       </section>
 
@@ -515,6 +539,17 @@
         <div class="card-bd" id="bdApv"></div>
       </section>
 
+      <section class="card" id="cardProy">
+        <div class="card-hd"><h2>Proyección al retiro</h2><span class="hint" id="hdProy"></span></div>
+        <div class="card-bd">
+          <div class="field" id="wrapTasa" hidden>
+            <label class="lbl" for="tasaReal">Rentabilidad real anual supuesta (%)</label>
+            <input type="number" id="tasaReal" step="0.1" value="3.5">
+          </div>
+          <div id="bdProy"></div>
+        </div>
+      </section>
+
       <section class="card">
         <div class="card-hd"><h2>Año tributario — Operación Renta</h2><span class="hint">abril 2027</span></div>
         <div class="card-bd">
@@ -587,7 +622,28 @@
   ["sueldo","afp","comision","isapre","wrapPlan","plan","afc","honorarios","cotIndep",
    "apv","uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
    "strip","bar","legend","tablaMes","tablaAnual","resultadoAnual","tablaTramos",
-   "cardApv","bdApv","hdApv","hdModo"].forEach(function (id) { el[id] = document.getElementById(id); });
+   "cardApv","bdApv","hdApv","hdModo",
+   "fechaNac","edadRetiro","notaEdad","seguroVida","cardProy","bdProy","hdProy",
+   "wrapTasa","tasaReal"
+  ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  /* Edad actuarial: el cumpleaños más cercano, próximo o pasado — el mismo criterio
+     que usan las compañías de seguros. Devuelve null si no hay fecha válida. */
+  function edades() {
+    if (!el.fechaNac.value) return null;
+    var nac = new Date(el.fechaNac.value + "T00:00:00");
+    if (isNaN(nac)) return null;
+    var hoy = new Date();
+    var anios = (hoy - nac) / (365.2425 * 864e5);
+    if (anios < 0 || anios > 120) return null;
+    var retiro = Math.min(90, Math.max(40, Math.round(dec(el.edadRetiro) || 65)));
+    return {
+      cumplida: Math.floor(anios),
+      actuarial: Math.round(anios),
+      retiro: retiro,
+      aniosRestantes: Math.max(0, retiro - anios)
+    };
+  }
 
   function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
   function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
@@ -708,18 +764,27 @@
     var ahorroB = Math.max(0, aSin.impuestoTotal - aConB.impuestoTotal);
     var bonoA = Math.min(0.15 * apvAnual, 6 * UTM);
 
-    pintarStrip(m, a, honBrutoAnual, p);
+    var seguro = num(el.seguroVida);
+    var ed = edades();
+
+    pintarStrip(m, a, honBrutoAnual, p, seguro);
     pintarBarra(m);
-    pintarMes(m, p);
+    pintarMes(m, p, seguro);
     pintarApv({
       apv: apv, apvAnual: apvAnual, ahorroB: ahorroB, bonoA: bonoA,
       impSin: aSin.impuestoTotal, impConB: aConB.impuestoTotal, p: p
     });
+    pintarProyeccion(ed, apv, ahorroB, seguro, S.regimen === "A" ? bonoA : 0);
     pintarAnual(a, honBrutoAnual, p);
     pintarTramos(S.tramoAnual);
+
+    el.notaEdad.textContent = ed
+      ? "Tiene " + ed.cumplida + " años cumplidos (edad actuarial " + ed.actuarial +
+        "). Faltan " + ed.aniosRestantes.toFixed(1).replace(".", ",") + " años para los " + ed.retiro + "."
+      : "Opcional. Sirve para proyectar cuánto acumula el APV hasta la jubilación.";
   }
 
-  function pintarStrip(m, a, hon, p) {
+  function pintarStrip(m, a, hon, p, seguro) {
     var tasaEf = m.bruto > 0 ? m.impuesto / m.bruto : 0;
     // Con boletas, el tramo que manda es el del Global Complementario, no el del sueldo solo.
     var iTramo = hon > 0 ? tramoDe(a.baseGC / 12) : m.tramo;
@@ -737,7 +802,9 @@
       : "12 meses de segunda categoría";
 
     el.strip.innerHTML =
-      stat("Líquido del sueldo", $(m.liquido), "cada mes, a tu cuenta", "") +
+      (seguro > 0
+        ? stat("Te queda disponible", $(m.liquido - seguro), "después de pagar el seguro", "")
+        : stat("Líquido del sueldo", $(m.liquido), "cada mes, a tu cuenta", "")) +
       stat("Impuesto mensual", $(m.impuesto), "tasa efectiva " + pct(tasaEf), "") +
       stat("Tramo marginal", tramo.etq, subTramo, "") +
       stat(cajaLbl, cajaVal, cajaSub, cajaCls);
@@ -785,7 +852,7 @@
            '<td class="' + nCls + '">' + valor + '</td></tr>';
   }
 
-  function pintarMes(m, p) {
+  function pintarMes(m, p, seguro) {
     var h = "";
     h += fila("Sueldo bruto", $(m.bruto), { tag: m.imponible < m.bruto ? "imponible " + $(m.imponible) : "" });
     h += fila("AFP + comisión", "−" + $(m.afp), { sub: true, cls: "rule", tag: pct(0.10 + p.comision, 2), color: "neg" });
@@ -800,9 +867,64 @@
       tag: m.tramo === 0 ? "exento" : pct(TABLA[m.tramo].f, 1) + " − " + $(TABLA[m.tramo].r),
       color: "neg"
     });
-    h += fila("Sueldo líquido", $(m.liquido), { cls: "total", color: "posv" });
+    if (seguro > 0) {
+      h += fila("Sueldo líquido", $(m.liquido), { cls: "rule" });
+      h += fila("Seguro de vida por fuera", "−" + $(seguro), { sub: true, tag: "no deducible", color: "neg" });
+      h += fila("Te queda disponible", $(m.liquido - seguro), { cls: "total", color: "posv" });
+    } else {
+      h += fila("Sueldo líquido", $(m.liquido), { cls: "total", color: "posv" });
+    }
 
     el.tablaMes.innerHTML = h;
+  }
+
+  /* Proyecta el APV hasta la jubilación con una tasa real editable, y muestra
+     el gasto real mensual = aporte + seguro por fuera − lo que devuelve el fisco. */
+  function pintarProyeccion(ed, apv, ahorroB, seguro, bonoA) {
+    if (!ed) {
+      el.hdProy.textContent = "sin fecha";
+      el.wrapTasa.hidden = true;
+      el.bdProy.innerHTML = '<p class="empty">Pon la fecha de nacimiento arriba para proyectar cuánto acumula el APV hasta la jubilación.</p>';
+      return;
+    }
+    if (apv <= 0 && seguro <= 0) {
+      el.hdProy.textContent = ed.cumplida + " años";
+      el.wrapTasa.hidden = true;
+      el.bdProy.innerHTML = '<p class="empty">Agrega un aporte de APV o una prima de seguro para ver la proyección.</p>';
+      return;
+    }
+
+    var n = ed.aniosRestantes;
+    el.hdProy.textContent = "a los " + ed.retiro + " años";
+    el.wrapTasa.hidden = false;
+
+    var tasa = (dec(el.tasaReal) || 0) / 100;
+    var meses = Math.round(n * 12);
+    var mm = Math.pow(1 + tasa, 1 / 12) - 1;
+    var saldo = 0;
+    for (var i = 0; i < meses; i++) saldo = (saldo + apv) * (1 + mm);
+
+    var aportado = apv * meses;
+    var ahorroMes = ahorroB / 12 + bonoA / 12;
+    var gastoReal = apv + seguro - ahorroMes;
+
+    var h = '<div class="callout good"><span class="hd">Tu gasto real es ' + $(gastoReal) + ' al mes</span>' +
+      'Pones <b>' + $(apv) + '</b> de APV' + (seguro > 0 ? ' más <b>' + $(seguro) + '</b> de seguro' : '') +
+      ', y el fisco te devuelve <b>' + $(ahorroMes) + '</b>. Esa es la cifra a comparar contra cualquier alternativa.</div>';
+
+    h += '<table class="ledger">' +
+      fila("Años hasta los " + ed.retiro, n.toFixed(1).replace(".", ",") + " años", { tag: "edad actuarial " + ed.actuarial }) +
+      fila("Aporte mensual al APV", $(apv), { sub: true, cls: "rule" }) +
+      fila("Total que habrá aportado", $(aportado), { sub: true }) +
+      fila("Rentabilidad acumulada", $(saldo - aportado), { sub: true, tag: pct(tasa, 1) + " real anual", color: "posv" }) +
+      fila("Saldo proyectado al retiro", $(saldo), { cls: "total", color: "posv" }) +
+      '</table>';
+
+    h += '<p class="note">En pesos de hoy: la rentabilidad real ya descuenta la inflación. ' +
+      'El ahorro de impuesto del régimen B llega mes a mes como mayor líquido, no se acumula solo — ' +
+      'si quieres contarlo como patrimonio, hay que invertirlo aparte.</p>';
+
+    el.bdProy.innerHTML = h;
   }
 
   function pintarApv(x) {
@@ -944,14 +1066,17 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apv"].forEach(function (id) {
+  ["sueldo", "plan", "honorarios", "apv", "seguroVida"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
 
-  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv"].forEach(function (id) {
+  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
+   "edadRetiro", "tasaReal"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
+  el.fechaNac.addEventListener("change", render);
+  el.fechaNac.addEventListener("input", render);
 
   el.afp.addEventListener("change", function () {
     el.comision.value = (Number(el.afp.value) * 100).toFixed(2);
