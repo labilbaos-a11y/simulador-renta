@@ -356,6 +356,18 @@
   .seg.ancho { width: 100%; }
   .seg.ancho button { flex: 1; text-align: center; padding: 6px 4px; font-size: 11.5px; }
 
+  /* Fondo + porcentaje en una línea */
+  .mezcla { display: flex; gap: 8px; align-items: center; margin-bottom: 7px; }
+  .mezcla select { flex: 1; min-width: 0; }
+  .mezcla .pct { flex: none; width: 74px; display: flex; align-items: center; gap: 3px; }
+  .mezcla .pct input { width: 100%; text-align: right; }
+  .mezcla .pct i { font-style: normal; font-size: 12px; color: var(--ink-3); }
+  .mezcla .pct.resto {
+    justify-content: flex-end; font-family: var(--mono); font-size: 13px;
+    color: var(--ink-3); padding-right: 12px;
+  }
+  .mezcla select:disabled { opacity: .5; }
+
   /* ---------- acento de cada situación ---------- */
   .acento-hoy .card-hd  { box-shadow: inset 3px 0 0 var(--ink-3); }
   .acento-prop .card-hd { box-shadow: inset 3px 0 0 var(--teal); }
@@ -527,15 +539,21 @@
           </div>
 
           <div class="divider"></div>
-          <div class="row2">
-            <div class="field">
-              <label class="lbl" for="fondoHoy">Dónde está invertido</label>
-              <select id="fondoHoy"></select>
+          <div class="field">
+            <span class="lbl">Dónde está invertido</span>
+            <div class="mezcla">
+              <select id="fondoHoy" aria-label="Primer fondo, situación actual"></select>
+              <span class="pct"><input type="number" id="pctHoy" min="0" max="100" step="5" value="100" aria-label="Porcentaje en el primer fondo"><i>%</i></span>
             </div>
-            <div class="field">
-              <label class="lbl" for="tasaHoy">Real anual %</label>
+            <div class="mezcla">
+              <select id="fondoHoy2" aria-label="Segundo fondo, situación actual"></select>
+              <span class="pct resto" id="restoHoy">0%</span>
+            </div>
+            <div class="field" id="wrapTasaHoy" hidden>
+              <label class="lbl" for="tasaHoy">Tasa manual real anual %</label>
               <input type="number" id="tasaHoy" step="0.01" value="3.23">
             </div>
+            <p class="note" id="notaFondoHoy"></p>
           </div>
         </div>
       </section>
@@ -561,15 +579,21 @@
           </div>
 
           <div class="divider"></div>
-          <div class="row2">
-            <div class="field">
-              <label class="lbl" for="fondoProp">Dónde se invertiría</label>
-              <select id="fondoProp"></select>
+          <div class="field">
+            <span class="lbl">Dónde se invertiría</span>
+            <div class="mezcla">
+              <select id="fondoProp" aria-label="Primer fondo, situación propuesta"></select>
+              <span class="pct"><input type="number" id="pctProp" min="0" max="100" step="5" value="50" aria-label="Porcentaje en el primer fondo"><i>%</i></span>
             </div>
-            <div class="field">
-              <label class="lbl" for="tasaProp">Real anual %</label>
+            <div class="mezcla">
+              <select id="fondoProp2" aria-label="Segundo fondo, situación propuesta"></select>
+              <span class="pct resto" id="restoProp">50%</span>
+            </div>
+            <div class="field" id="wrapTasaProp" hidden>
+              <label class="lbl" for="tasaProp">Tasa manual real anual %</label>
               <input type="number" id="tasaProp" step="0.01" value="3.46">
             </div>
+            <p class="note" id="notaFondoProp"></p>
           </div>
           <div class="field">
             <label class="lbl" for="costoProd">Costo del producto (% anual)</label>
@@ -756,12 +780,15 @@
    "strip","hdModo","notaSueldo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
    "cardAnual","tablaAnual","resultadoAnual","tablaTramos",
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
-   "fondoHoy","tasaHoy","fondoProp","tasaProp","costoProd",
-   "cardProy","hdProy","tablaProy","avisoProy"
+   "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
+   "fondoProp","fondoProp2","pctProp","restoProp","tasaProp","wrapTasaProp","notaFondoProp",
+   "costoProd","cardProy","hdProy","tablaProy","avisoProy"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
-  // Poblar los dos selectores de fondo con el catálogo
-  [["fondoHoy", "cupA"], ["fondoProp", "pbAgr"]].forEach(function (par) {
+  // Poblar los cuatro selectores. La propuesta arranca en 50/50 PB Agresivo + Garantizado,
+  // que es la mezcla que trae la propuesta de MetLife.
+  [["fondoHoy", "cupA"], ["fondoHoy2", "cupC"],
+   ["fondoProp", "pbAgr"], ["fondoProp2", "gar"]].forEach(function (par) {
     el[par[0]].innerHTML = FONDOS.map(function (f) {
       var t = tasaNeta(f);
       var etq = f.id === "gar" ? "MetLife Garantizado — 1,5% / 1,0%"
@@ -803,18 +830,42 @@
     };
   }
 
-  /* Acumula aportes mensuales a una tasa real. El garantizado cambia de tasa en 2029,
-     así que se evalúa mes a mes en vez de aplicar un promedio. */
-  function acumular(aporteMes, fondoId, tasaManual, costoAnual, anios) {
-    var meses = Math.round(anios * 12), v = 0, t0 = hoyDecimal();
+  /* Tasa de un fondo en el mes t (años desde hoy). El garantizado baja de 1,5% a 1,0%
+     en may-2029, así que no se puede resolver con un promedio único. */
+  function tasaEn(m, t) {
+    if (m.id === "gar") return (hoyDecimal() + t < GAR_CORTE) ? GAR_ALTA : GAR_BAJA;
+    return m.tasa / 100;
+  }
+  // mezcla = [{id, tasa, peso}] con los pesos sumando 1
+  function tasaMezcla(mezcla, t) {
+    var r = 0;
+    for (var k = 0; k < mezcla.length; k++) r += tasaEn(mezcla[k], t) * mezcla[k].peso;
+    return r;
+  }
+  function acumular(aporteMes, mezcla, costoAnual, anios) {
+    var meses = Math.round(anios * 12), v = 0;
     for (var i = 0; i < meses; i++) {
-      var bruta = fondoId === "gar"
-        ? (t0 + i / 12 < GAR_CORTE ? GAR_ALTA : GAR_BAJA)
-        : tasaManual / 100;
-      var neta = Math.max(-0.99, bruta - (costoAnual || 0) / 100);
+      var neta = Math.max(-0.99, tasaMezcla(mezcla, i / 12) - (costoAnual || 0) / 100);
       v = (v + aporteMes) * Math.pow(1 + neta, 1 / 12);
     }
     return v;
+  }
+  /* Lee los dos selectores de una situación y devuelve la mezcla normalizada. */
+  function leerMezcla(idA, idPct, idB, idTasa) {
+    var pct = Math.min(100, Math.max(0, dec(el[idPct])));
+    var fa = buscarFondo(el[idA].value), fb = buscarFondo(el[idB].value);
+    var manual = dec(el[idTasa]);
+    var tasaDe = function (f) { return f.id === "man" ? manual : (f.bruto === null ? 0 : tasaNeta(f)); };
+    var m = [];
+    if (pct > 0) m.push({ id: fa.id, nom: fa.nom, tasa: tasaDe(fa), peso: pct / 100 });
+    if (pct < 100) m.push({ id: fb.id, nom: fb.nom, tasa: tasaDe(fb), peso: (100 - pct) / 100 });
+    return { mezcla: m, pct: pct, fa: fa, fb: fb, usaManual: fa.id === "man" || fb.id === "man" };
+  }
+  // Etiqueta legible de la mezcla: "50% PB Agresivo + 50% Garantizado"
+  function etiquetaMezcla(x) {
+    return x.mezcla.map(function (m) {
+      return Math.round(m.peso * 100) + "% " + m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, "");
+    }).join(" + ");
   }
 
   /* ---------------- Motor tributario ---------------- */
@@ -944,6 +995,7 @@
     pintarAnual(A.a, honAnual, p);
     pintarTramos(honAnual > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo);
     pintarEdad();
+    refrescarMezclas();
 
     el.hdModo.textContent = S.modoSueldo === "bruto" ? "bruto ingresado" : "bruto calculado: " + $(bruto);
     el.notaSueldo.innerHTML = S.modoSueldo === "liquido"
@@ -1123,19 +1175,24 @@
     var n = ed.aniosRestantes;
     el.hdProy.textContent = "a los " + ed.retiro + " años";
 
-    var fHoy = el.fondoHoy.value, fProp = el.fondoProp.value;
+    var mA = leerMezcla("fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy");
+    var mB = leerMezcla("fondoProp", "pctProp", "fondoProp2", "tasaProp");
     var costo = dec(el.costoProd);
     // Solo el aporte se acumula: la prima del seguro compra cobertura, no capital.
-    var saldoA = acumular(A.aporte, fHoy, dec(el.tasaHoy), 0, n);
-    var saldoB = hayProp ? acumular(B.aporte, fProp, dec(el.tasaProp), costo, n) : 0;
+    var saldoA = acumular(A.aporte, mA.mezcla, 0, n);
+    var saldoB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n) : 0;
     var puestoA = A.aporte * Math.round(n * 12), puestoB = B.aporte * Math.round(n * 12);
     var d = function (v) { return hayProp ? v : null; };
 
+    // Tasa efectiva del período: la que, compuesta, produce el mismo saldo.
+    function efectiva(m, c) {
+      var t0 = tasaMezcla(m, 0) - c / 100, t1 = tasaMezcla(m, n) - c / 100;
+      return Math.abs(t0 - t1) < 1e-9 ? pct(t0, 2) : pct(t0, 2) + " → " + pct(t1, 2);
+    }
+
     var h = encabezado(hayProp) + "<tbody>";
-    h += filaComp("Fondo", buscarFondo(fHoy).nom, d(buscarFondo(fProp).nom), { cls: "txt" });
-    h += filaComp("Rentabilidad real usada",
-      fHoy === "gar" ? "1,5% → 1,0%" : pct(dec(el.tasaHoy) / 100, 2),
-      d(fProp === "gar" ? "1,5% → 1,0%" : pct((dec(el.tasaProp) - costo) / 100, 2)), { sub: true, cls: "txt" });
+    h += filaComp("Fondo", etiquetaMezcla(mA), d(etiquetaMezcla(mB)), { cls: "txt" });
+    h += filaComp("Rentabilidad real usada", efectiva(mA.mezcla, 0), d(efectiva(mB.mezcla, costo)), { sub: true, cls: "txt" });
     h += filaComp("Aporte mensual", $(A.aporte), d($(B.aporte)), { sub: true, cls: "rule" });
     h += filaComp("Años hasta los " + ed.retiro, n.toFixed(1).replace(".", ",") + " años",
       d(n.toFixed(1).replace(".", ",") + " años"), { sub: true });
@@ -1143,7 +1200,7 @@
     h += filaComp("<b>Saldo al retiro</b>", "<b>" + $(saldoA) + "</b>", d("<b>" + $(saldoB) + "</b>"), { cls: "total", color: "posv" });
     el.tablaProy.innerHTML = h + "</tbody>";
 
-    var garantizado = fHoy === "gar" || fProp === "gar";
+    var garantizado = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { return m.id === "gar"; });
     el.avisoProy.innerHTML =
       '<div class="callout warn"><span class="hd">Rentabilidades de los últimos 5 años</span>' +
       'Son el promedio real anualizado 2021–2025, ya descontada la inflación. <b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
@@ -1178,6 +1235,34 @@
       '<span class="rv">' + $(bonoA) + '</span>' +
       '<span class="rd">Aporte del Estado al fondo, al año. Tope 6 UTM (' + $(6 * UTM) + ').</span>' +
       (!ganaB ? '<span class="badge">Recomendado</span>' : "") + '</div></div>';
+
+    /* Comparativo al retiro. La diferencia de fondo entre los dos regímenes no es el
+       número anual: el bono del A entra al fondo y capitaliza, mientras que el ahorro
+       del B llega al bolsillo mes a mes y solo capitaliza si se reinvierte. */
+    var ed = edades();
+    if (ed && !ed.error && ed.aniosRestantes > 0 && X.aporte > 0) {
+      var n = ed.aniosRestantes;
+      var mz = leerMezcla(hayProp ? "fondoProp" : "fondoHoy", hayProp ? "pctProp" : "pctHoy",
+                          hayProp ? "fondoProp2" : "fondoHoy2", hayProp ? "tasaProp" : "tasaHoy");
+      var costo = hayProp ? dec(el.costoProd) : 0;
+      var bonoMes = bonoA / 12;
+      var fondoB = acumular(X.aporte, mz.mezcla, costo, n);
+      var fondoA = acumular(X.aporte + bonoMes, mz.mezcla, costo, n);
+      var efectivoB = ahorroB * n;   // el ahorro de impuesto recibido, sin reinvertir
+
+      h += '<div class="scroll" style="margin-top:4px"><table class="comp"><thead><tr><th></th>' +
+        '<th>Régimen B</th><th class="col2">Régimen A</th></tr></thead><tbody>' +
+        filaComp("Fondo a los " + ed.retiro, $(fondoB), $(fondoA)) +
+        filaComp("Menos impuesto, en efectivo", $(efectivoB), "—", { sub: true }) +
+        filaComp("<b>Total en " + n.toFixed(0) + " años</b>",
+          "<b>" + $(fondoB + efectivoB) + "</b>", "<b>" + $(fondoA) + "</b>", { cls: "total" }) +
+        "</tbody></table></div>";
+
+      var mejorTotal = (fondoB + efectivoB) >= fondoA;
+      h += '<p class="note">Gana el <b>régimen ' + (mejorTotal ? "B" : "A") + '</b> por <b>' +
+        $(Math.abs(fondoB + efectivoB - fondoA)) + '</b>. El bono del A capitaliza en el fondo; ' +
+        'el ahorro del B llega en efectivo y solo capitaliza si se reinvierte.</p>';
+    }
 
     var elegido = X.regimen;
     if ((ganaB && elegido !== "B") || (!ganaB && elegido !== "A")) {
@@ -1255,20 +1340,31 @@
   });
 
   ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
-   "edadRetiro", "tasaHoy", "tasaProp", "costoProd"].forEach(function (id) {
+   "edadRetiro", "tasaHoy", "tasaProp", "costoProd", "pctHoy", "pctProp"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
   el.fechaNac.addEventListener("input", render);
-
-  // Elegir un fondo rellena su tasa; después se puede editar a mano.
-  [["fondoHoy", "tasaHoy"], ["fondoProp", "tasaProp"]].forEach(function (par) {
-    el[par[0]].addEventListener("change", function () {
-      var f = buscarFondo(el[par[0]].value), t = tasaNeta(f);
-      if (t !== null) el[par[1]].value = t;
-      el[par[1]].disabled = (f.id === "gar");
-      render();
-    });
+  ["fondoHoy", "fondoHoy2", "fondoProp", "fondoProp2"].forEach(function (id) {
+    el[id].addEventListener("change", render);
   });
+
+  /* Refresca lo que depende de la mezcla: el resto %, si hace falta la tasa manual,
+     y la rentabilidad resultante. */
+  function refrescarMezclas() {
+    [["Hoy", "fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy", "restoHoy", "wrapTasaHoy", "notaFondoHoy"],
+     ["Prop", "fondoProp", "pctProp", "fondoProp2", "tasaProp", "restoProp", "wrapTasaProp", "notaFondoProp"]
+    ].forEach(function (c) {
+      var x = leerMezcla(c[1], c[2], c[3], c[4]);
+      el[c[5]].textContent = (100 - x.pct) + "%";
+      el[c[6]].hidden = !x.usaManual;
+      el[c[3]].disabled = x.pct >= 100;
+      var r0 = tasaMezcla(x.mezcla, 0), r5 = tasaMezcla(x.mezcla, 10);
+      el[c[7]].innerHTML = x.pct >= 100
+        ? "Rentabilidad real: <b>" + pct(r0, 2) + "</b>"
+        : "Mezcla: <b>" + etiquetaMezcla(x) + "</b> — rentabilidad real " +
+          (Math.abs(r0 - r5) < 1e-9 ? "<b>" + pct(r0, 2) + "</b>" : "<b>" + pct(r0, 2) + "</b> y luego <b>" + pct(r5, 2) + "</b>");
+    });
+  }
 
   el.afp.addEventListener("change", function () {
     el.comision.value = (Number(el.afp.value) * 100).toFixed(2);
