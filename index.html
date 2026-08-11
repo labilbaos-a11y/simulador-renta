@@ -341,6 +341,10 @@
   .comp tr.rule > * { border-top: 1px solid var(--line-soft); }
   .comp tr.total > * { border-top: 2px solid var(--ink); font-weight: 700; padding-top: 9px; }
   .comp tr.total td.n { font-size: 16px; }
+  /* Fila de referencia: no entra en la resta, por eso va apagada y sin signo. */
+  .comp tr.ref td { color: var(--ink-3); padding-bottom: 2px; }
+  .comp tr.ref td.n { font-size: 12.5px; }
+
   .comp tr.glosa td { padding: 0 0 6px; font-size: 10.5px; color: var(--ink-3); }
   .comp tr.glosa td i { font-style: normal; }
   /* La glosa es texto, no cifras: dejarla envolver para que no estire la tabla. */
@@ -431,6 +435,7 @@
               </div>
             </div>
             <span class="money"><span>$</span><input type="text" id="sueldo" inputmode="numeric" value="2.500.000" aria-label="Monto del sueldo"></span>
+            <p class="note" id="notaSueldo"></p>
           </div>
 
           <div class="row2">
@@ -661,7 +666,7 @@
   ["fechaNac","notaEdad","sueldo","afp","comision","isapre","wrapPlan","plan","afc",
    "honorarios","cotIndep","apvHoy","seguroFuera","apvProp","seguroApv",
    "uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
-   "strip","hdModo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
+   "strip","hdModo","notaSueldo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
    "cardAnual","tablaAnual","resultadoAnual","tablaTramos"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -797,11 +802,11 @@
     var aporteHoy = num(el.apvHoy), segFuera = num(el.seguroFuera);
     var aporteProp = num(el.apvProp), segDentro = num(el.seguroApv);
 
-    // El bruto se ancla en la situación actual: es el sueldo que la persona tiene hoy.
+    /* El líquido que uno declara es el de antes de decidir cuánto ahorrar. Si el bruto se
+       resolviera con el APV puesto, cambiaría solo cada vez que se toca el aporte, y el
+       bruto es un dato del trabajo, no del ahorro. */
     var entrada = num(el.sueldo);
-    var bruto = S.modoSueldo === "bruto"
-      ? entrada
-      : brutoDesdeLiquido(entrada, aporteHoy, S.regHoy, p) ;
+    var bruto = S.modoSueldo === "bruto" ? entrada : brutoDesdeLiquido(entrada, 0, "B", p);
 
     var hEnt = num(el.honorarios);
     var hBruto = S.modoHon === "bruto" ? hEnt : (p.retencion < 1 ? hEnt / (1 - p.retencion) : hEnt);
@@ -820,6 +825,9 @@
     pintarEdad();
 
     el.hdModo.textContent = S.modoSueldo === "bruto" ? "bruto ingresado" : "bruto calculado: " + $(bruto);
+    el.notaSueldo.innerHTML = S.modoSueldo === "liquido"
+      ? "Líquido <b>antes del APV</b>: lo que recibiría si no ahorrara nada. Al cargar el APV abajo, el líquido baja."
+      : "Bruto de contrato. El APV se descuenta de este monto más abajo.";
   }
 
   function pintarEdad() {
@@ -883,23 +891,22 @@
     h += filaComp(p.isapre ? "Salud (7% legal)" : "Salud — Fonasa", "−" + $(A.m.saludLegal), d(function (x) { return "−" + $(x.m.saludLegal); }), { sub: true, color: "neg" });
     if (A.m.saludExtra > 0.5) h += filaComp("Plan isapre sobre el 7%", "−" + $(A.m.saludExtra), d(function (x) { return "−" + $(x.m.saludExtra); }), { sub: true, color: "neg" });
     if (A.m.afc > 0) h += filaComp("Seguro de cesantía", "−" + $(A.m.afc), d(function (x) { return "−" + $(x.m.afc); }), { sub: true, color: "neg" });
-    h += filaComp("APV que rebaja base", "−" + $(A.m.apvDeducible), d(function (x) { return "−" + $(x.m.apvDeducible); }), { sub: true, color: "neg" });
-    h += filaComp("<b>Renta líquida imponible</b>", "<b>" + $(A.m.rli) + "</b>", d(function (x) { return "<b>" + $(x.m.rli) + "</b>"; }), { cls: "rule" });
+    /* El APV se descuenta del líquido completo, rebaje o no la base imponible.
+       Se muestra como un solo descuento, igual que en una liquidación de sueldo. */
+    h += filaComp("APV", "−" + $(A.m.apv), d(function (x) { return "−" + $(x.m.apv); }), { sub: true, color: "neg" });
+
+    // La base es referencia, no parte de la resta: por eso va sin signo y en gris.
+    h += filaComp("Base del impuesto", $(A.m.rli), d(function (x) { return $(x.m.rli); }), { sub: true, cls: "ref" });
+    var glosaBase = function (x) {
+      var r = x.m.apv - x.m.apvDeducible;
+      if (x.m.apv <= 0) return "";
+      return r > 0.5
+        ? "<i>" + (x.regimen === "A" ? "régimen A: el APV no la rebaja" : "parte del APV sobre el tope") + "</i>"
+        : "<i>ya rebajada por el APV</i>";
+    };
+    h += filaComp("", glosaBase(A), hayProp ? glosaBase(B) : null, { sub: true, cls: "glosa" });
+
     h += filaComp("Impuesto único", "−" + $(A.m.impuesto), d(function (x) { return "−" + $(x.m.impuesto); }), { sub: true, color: "neg" });
-
-    /* El APV en régimen A —o el exceso sobre el tope de 50 UF— igual se descuenta del
-       líquido aunque no rebaje la base. Sin esta fila el líquido no cuadra con la tabla. */
-    var restoA = A.m.apv - A.m.apvDeducible;
-    var restoB = hayProp ? B.m.apv - B.m.apvDeducible : 0;
-    if (restoA > 0.5 || restoB > 0.5) {
-      h += filaComp("APV que no rebaja base", restoA > 0.5 ? "−" + $(restoA) : "—",
-        d(function (x) { var r = x.m.apv - x.m.apvDeducible; return r > 0.5 ? "−" + $(r) : "—"; }),
-        { sub: true, color: "neg" });
-      var glosa = "<i>régimen A o sobre el tope</i>";
-      h += filaComp("", restoA > 0.5 ? glosa : "",
-        hayProp ? (restoB > 0.5 ? glosa : "") : null, { sub: true, cls: "glosa" });
-    }
-
     h += filaComp("Sueldo líquido", $(A.m.liquido), d(function (x) { return $(x.m.liquido); }), { cls: "total", color: "posv" });
     el.tablaLiq.innerHTML = h + "</tbody>";
   }
@@ -1064,11 +1071,12 @@
   }
 
   segmentado("segSueldo", function (v) {
-    var p = params(), apv = num(el.apvHoy), actual = num(el.sueldo);
+    // La conversión también va sin APV, para que sea el mismo número en los dos sentidos.
+    var p = params(), actual = num(el.sueldo);
     if (v === "liquido" && S.modoSueldo === "bruto")
-      el.sueldo.value = nf.format(Math.round(Math.max(0, liquidar(actual, apv, S.regHoy, p).liquido)));
+      el.sueldo.value = nf.format(Math.round(Math.max(0, liquidar(actual, 0, "B", p).liquido)));
     else if (v === "bruto" && S.modoSueldo === "liquido")
-      el.sueldo.value = nf.format(Math.round(brutoDesdeLiquido(actual, apv, S.regHoy, p)));
+      el.sueldo.value = nf.format(Math.round(brutoDesdeLiquido(actual, 0, "B", p)));
     S.modoSueldo = v; render();
   });
 
