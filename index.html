@@ -323,6 +323,44 @@
     .params-grid { gap: 9px; }
   }
 
+
+  /* ---------- tabla comparativa: hoy vs propuesta ---------- */
+  .comp { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 330px; }
+  .comp th {
+    font-size: 10px; letter-spacing: .09em; text-transform: uppercase; font-weight: 650;
+    color: var(--ink-3); padding: 0 0 8px; text-align: right; white-space: nowrap;
+  }
+  .comp th:first-child { text-align: left; }
+  .comp th.col2 { color: var(--teal); }
+  .comp th:not(:first-child), .comp td:not(:first-child) { padding-left: 14px; }
+  .comp td { padding: 7px 0; }
+  .comp td.n {
+    text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .comp td.sub { padding-left: 12px; color: var(--ink-2); }
+  .comp tr.rule > * { border-top: 1px solid var(--line-soft); }
+  .comp tr.total > * { border-top: 2px solid var(--ink); font-weight: 700; padding-top: 9px; }
+  .comp tr.total td.n { font-size: 16px; }
+  .comp tr.glosa td { padding: 0 0 6px; font-size: 10.5px; color: var(--ink-3); }
+  .comp tr.glosa td i { font-style: normal; }
+  /* La glosa es texto, no cifras: dejarla envolver para que no estire la tabla. */
+  .comp tr.glosa td.n { white-space: normal; font-family: var(--sans); }
+
+  /* ---------- acento de cada situación ---------- */
+  .acento-hoy .card-hd  { box-shadow: inset 3px 0 0 var(--ink-3); }
+  .acento-prop .card-hd { box-shadow: inset 3px 0 0 var(--teal); }
+  .acento-prop .card-hd h2 { color: var(--teal); }
+
+  @media (max-width: 560px) {
+    /* min-width 0 deja que la columna de etiquetas envuelva en vez de forzar scroll:
+       los montos ya van con nowrap, así que nunca se parten. */
+    .comp { font-size: 11.5px; min-width: 0; }
+    .comp th:not(:first-child), .comp td:not(:first-child) { padding-left: 8px; }
+    .comp td.sub { padding-left: 8px; }
+    .comp tr.total td.n { font-size: 13.5px; }
+    .comp th { font-size: 9.5px; letter-spacing: .06em; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -352,20 +390,30 @@
         <span id="themeicon">◐</span><span id="themetxt">Tema</span>
       </button>
 
-    <div class="eyebrow">Impuesto Único de Segunda Categoría · Global Complementario</div>
+    <div class="eyebrow">Impuesto Único de Segunda Categoría · APV</div>
     <h1>Simulador de renta</h1>
     <div class="subhead">
       <span>Tabla SII <b>agosto 2026</b></span>
       <span>UTM <b>$71.649</b></span>
-      <span>UTA <b>$859.788</b></span>
-      <span>Sueldo · boletas de honorarios · APV</span>
+      <span>Compara la situación actual con una propuesta</span>
     </div>
   </header>
 
   <div class="cols">
 
-    <!-- ================= PANEL IZQUIERDO ================= -->
+    <!-- ================= ENTRADAS ================= -->
     <div class="panel-col">
+
+      <section class="card">
+        <div class="card-hd"><h2>Titular</h2></div>
+        <div class="card-bd">
+          <div class="field">
+            <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
+            <input type="text" id="fechaNac" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="bday" value="">
+          </div>
+          <p class="note" id="notaEdad">Escríbela como dd-mm-aaaa, por ejemplo 15-02-1974.</p>
+        </div>
+      </section>
 
       <section class="card">
         <div class="card-hd"><h2>Sueldo</h2><span class="hint">mensual</span></div>
@@ -380,8 +428,6 @@
             </div>
             <span class="money"><span>$</span><input type="text" id="sueldo" inputmode="numeric" value="2.500.000" aria-label="Monto del sueldo"></span>
           </div>
-
-          <div class="divider"></div>
 
           <div class="row2">
             <div class="field">
@@ -406,34 +452,9 @@
           <div class="field" id="wrapPlan" hidden>
             <label class="lbl" for="plan">Costo del plan (mensual)</label>
             <span class="money"><span>$</span><input type="text" id="plan" inputmode="numeric" value="0" aria-label="Costo mensual del plan de isapre"></span>
-            <p class="note">Solo el 7% legal rebaja impuesto. Lo que pagas por sobre eso sale de tu líquido y no es deducible.</p>
           </div>
 
           <label class="check"><input type="checkbox" id="afc" checked> Contrato indefinido — cotizo AFC (0,6%)</label>
-
-          <div class="divider"></div>
-          <div class="row2">
-            <div class="field">
-              <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
-              <input type="text" id="fechaNac" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="bday" value="">
-            </div>
-            <div class="field">
-              <label class="lbl" for="edadRetiro">Se pensiona a los</label>
-              <input type="number" id="edadRetiro" step="1" min="40" max="90" value="65">
-            </div>
-          </div>
-          <p class="note" id="notaEdad">Opcional. Sirve para proyectar cuánto acumula el APV hasta la jubilación.</p>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-hd"><h2>Seguro de vida</h2><span class="hint">fuera del APV</span></div>
-        <div class="card-bd">
-          <div class="field">
-            <label class="lbl" for="seguroVida">Prima mensual que paga aparte</label>
-            <span class="money"><span>$</span><input type="text" id="seguroVida" inputmode="numeric" value="0" aria-label="Prima mensual del seguro de vida contratado por fuera"></span>
-          </div>
-          <p class="note">Un seguro de vida contratado por fuera <b>no rebaja impuesto</b>: sale entero del líquido. Dentro de un seguro con APV, en cambio, la prima sí es deducible. Poner el monto acá permite comparar el gasto real de ambas alternativas.</p>
         </div>
       </section>
 
@@ -458,30 +479,50 @@
             </div>
           </div>
           <label class="check"><input type="checkbox" id="cotIndep" checked> Cotizo como independiente (Ley 21.133)</label>
-          <p class="note">Las boletas no pagan Segunda Categoría: se juntan con el sueldo en abril, en el Global Complementario. Ahí se ve si te devuelven o si tienes que pagar.</p>
         </div>
       </section>
 
-      <section class="card">
-        <div class="card-hd"><h2>APV</h2><span class="hint">ahorro previsional</span></div>
+      <section class="card acento-hoy">
+        <div class="card-hd"><h2>Situación actual</h2><span class="hint">hoy</span></div>
         <div class="card-bd">
           <div class="field">
-            <label class="lbl" for="apv">Aporte mensual</label>
-            <span class="money"><span>$</span><input type="text" id="apv" inputmode="numeric" value="0" aria-label="Aporte mensual de APV"></span>
-          </div>
-          <div class="field">
-            <label class="lbl" for="seguroApv">Prima de seguro con APV</label>
-            <span class="money"><span>$</span><input type="text" id="seguroApv" inputmode="numeric" value="0" aria-label="Prima mensual del seguro de vida acogido a APV"></span>
-            <p class="note">Si el seguro de vida está <b>dentro</b> de un producto APV, su prima también rebaja impuesto y se suma al aporte. Es la diferencia con el seguro contratado por fuera.</p>
+            <label class="lbl" for="apvHoy">APV mensual</label>
+            <span class="money"><span>$</span><input type="text" id="apvHoy" inputmode="numeric" value="0" aria-label="APV mensual actual"></span>
           </div>
           <div class="row-split">
             <span class="lbl">Régimen</span>
-            <div class="seg" id="segApv">
-              <button type="button" data-v="B" aria-pressed="true">B — rebaja impuesto</button>
-              <button type="button" data-v="A" aria-pressed="false">A — bono 15%</button>
+            <div class="seg" id="segRegHoy">
+              <button type="button" data-v="B" aria-pressed="true">B</button>
+              <button type="button" data-v="A" aria-pressed="false">A</button>
             </div>
           </div>
-          <p class="note">Régimen B: el aporte se descuenta de la base y pagas menos impuesto ahora. Régimen A: el Estado te deposita un 15% en el fondo (tope 6 UTM al año), pero no rebaja impuesto.</p>
+          <div class="field">
+            <label class="lbl" for="seguroFuera">Seguro de vida por fuera</label>
+            <span class="money"><span>$</span><input type="text" id="seguroFuera" inputmode="numeric" value="0" aria-label="Prima mensual del seguro contratado por fuera"></span>
+            <p class="note">Contratado aparte del APV: <b>no rebaja impuesto</b>, sale entero del líquido.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card acento-prop">
+        <div class="card-hd"><h2>Situación propuesta</h2><span class="hint">con seguro APV</span></div>
+        <div class="card-bd">
+          <div class="field">
+            <label class="lbl" for="apvProp">APV mensual</label>
+            <span class="money"><span>$</span><input type="text" id="apvProp" inputmode="numeric" value="0" aria-label="APV mensual propuesto"></span>
+          </div>
+          <div class="row-split">
+            <span class="lbl">Régimen</span>
+            <div class="seg" id="segRegProp">
+              <button type="button" data-v="B" aria-pressed="true">B</button>
+              <button type="button" data-v="A" aria-pressed="false">A</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="seguroApv">Seguro de vida dentro del APV</label>
+            <span class="money"><span>$</span><input type="text" id="seguroApv" inputmode="numeric" value="0" aria-label="Prima mensual del seguro acogido a APV"></span>
+            <p class="note">La prima va dentro del producto APV: <b>sí rebaja impuesto</b> y se suma al aporte.</p>
+          </div>
         </div>
       </section>
 
@@ -492,7 +533,7 @@
             <div class="params-grid">
               <div class="field">
                 <label class="lbl" for="uf">Valor UF ($)</label>
-                <input type="number" id="uf" step="1" value="41000">
+                <input type="number" id="uf" step="1" value="40845">
               </div>
               <div class="field">
                 <label class="lbl" for="topeImp">Tope imponible (UF)</label>
@@ -515,7 +556,7 @@
                 <input type="number" id="topeApv" step="1" value="50">
               </div>
             </div>
-            <p class="note" style="margin-top:10px">La UF y los topes cambian todos los meses o años. Ajústalos si quieres precisión al peso; casi nunca mueven el resultado salvo en sueldos altos.</p>
+            <p class="note" style="margin-top:10px">La UF y los topes cambian seguido. Ajústalos si necesitas precisión al peso.</p>
           </details>
         </div>
       </section>
@@ -530,32 +571,25 @@
       <section class="card">
         <div class="card-hd"><h2>Liquidación mensual</h2><span class="hint" id="hdModo"></span></div>
         <div class="card-bd">
-          <div>
-            <div class="bar" id="bar"></div>
-            <div class="legend" id="legend"></div>
-          </div>
-          <div class="divider"></div>
-          <table class="ledger" id="tablaMes"></table>
-        </div>
-      </section>
-
-      <section class="card" id="cardApv">
-        <div class="card-hd"><h2>Qué te devuelve el APV</h2><span class="hint" id="hdApv"></span></div>
-        <div class="card-bd" id="bdApv"></div>
-      </section>
-
-      <section class="card" id="cardProy">
-        <div class="card-hd"><h2>Proyección al retiro</h2><span class="hint" id="hdProy"></span></div>
-        <div class="card-bd">
-          <div class="field" id="wrapTasa" hidden>
-            <label class="lbl" for="tasaReal">Rentabilidad real anual supuesta (%)</label>
-            <input type="number" id="tasaReal" step="0.1" value="3.5">
-          </div>
-          <div id="bdProy"></div>
+          <div class="scroll"><table class="comp" id="tablaLiq"></table></div>
+          <p class="note">El cuadro impositivo puro: solo sueldo, cotizaciones y APV. Los seguros de vida se comparan en el cuadro siguiente.</p>
         </div>
       </section>
 
       <section class="card">
+        <div class="card-hd"><h2>Costo real del ahorro</h2><span class="hint">al mes</span></div>
+        <div class="card-bd">
+          <div class="scroll"><table class="comp" id="tablaCosto"></table></div>
+          <div id="veredicto"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-hd"><h2>Régimen recomendado</h2><span class="hint" id="hdReg"></span></div>
+        <div class="card-bd" id="bdReg"></div>
+      </section>
+
+      <section class="card" id="cardAnual" hidden>
         <div class="card-hd"><h2>Año tributario — Operación Renta</h2><span class="hint">abril 2027</span></div>
         <div class="card-bd">
           <table class="ledger" id="tablaAnual"></table>
@@ -567,7 +601,6 @@
         <div class="card-hd"><h2>Tramos del impuesto</h2><span class="hint">agosto 2026</span></div>
         <div class="card-bd">
           <div class="scroll"><table class="tramos" id="tablaTramos"></table></div>
-          <p class="note">La renta líquida imponible es tu sueldo bruto menos AFP, salud (7%) y AFC. El impuesto es esa base por el factor, menos la rebaja del tramo. Si cargas boletas, el tramo marcado es el del año completo, no el del sueldo solo.</p>
         </div>
       </section>
 
@@ -575,11 +608,11 @@
   </div>
 
   <footer>
-    <b>Estimación referencial.</b> Usa la tabla del Impuesto Único de Segunda Categoría publicada por el SII para agosto 2026 (UTM $71.649) y reglas vigentes de AFP, salud, AFC, APV y honorarios.
-    No considera rentas de capital, créditos por gastos en educación, dividendos de empresas, gastos efectivos en vez de presuntos, ni tramos de cobertura parcial de cotizaciones de independiente.
-    Los valores de UF, topes imponibles y tasas son editables en «Parámetros y topes» porque cambian mes a mes. Para tu declaración final, valida con tu contador.
+    <b>Estimación referencial.</b> Usa la tabla del Impuesto Único de Segunda Categoría del SII para agosto 2026 (UTM $71.649) y las reglas vigentes de AFP, salud, AFC y APV.
+    No considera rentas de capital ni otros créditos. Los valores de UF, topes y tasas son editables en «Parámetros y topes». Para una declaración real, valídalo con un contador.
   </footer>
 </div>
+
 
 <script>
 (function () {
@@ -612,41 +645,34 @@
   /* ---------------- Formato ---------------- */
   var nf = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
   function $(v) { return "$" + nf.format(Math.round(v || 0)); }
-  function $s(v) { var n = Math.round(v || 0); return (n < 0 ? "−$" : "$") + nf.format(Math.abs(n)); }
   function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d).replace(".", ",") + "%"; }
 
-  /* ---------------- Estado ---------------- */
-  var S = {
-    modoSueldo: "bruto",
-    modoHon: "bruto",
-    periodoHon: "mensual",
-    regimen: "B"
-  };
-
-  var el = {};
-  ["sueldo","afp","comision","isapre","wrapPlan","plan","afc","honorarios","cotIndep",
-   "apv","uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
-   "strip","bar","legend","tablaMes","tablaAnual","resultadoAnual","tablaTramos",
-   "cardApv","bdApv","hdApv","hdModo",
-   "fechaNac","edadRetiro","notaEdad","seguroVida","seguroApv","cardProy","bdProy","hdProy",
-   "wrapTasa","tasaReal"
-  ].forEach(function (id) { el[id] = document.getElementById(id); });
-
-  /* Edad actuarial: el cumpleaños más cercano, próximo o pasado — el mismo criterio
-     que usan las compañías de seguros. Devuelve null si no hay fecha válida. */
   var MESES = ["enero","febrero","marzo","abril","mayo","junio",
                "julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
-  /* Acepta lo que la gente realmente escribe: 15-02-1974, 15/2/74, 02-1974 o solo 1974.
-     Devuelve null si no se entiende, para no inventar una edad. */
+  /* ---------------- Estado ---------------- */
+  var S = { modoSueldo: "bruto", modoHon: "bruto", periodoHon: "mensual", regHoy: "B", regProp: "B" };
+
+  var el = {};
+  ["fechaNac","notaEdad","sueldo","afp","comision","isapre","wrapPlan","plan","afc",
+   "honorarios","cotIndep","apvHoy","seguroFuera","apvProp","seguroApv",
+   "uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
+   "strip","hdModo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
+   "cardAnual","tablaAnual","resultadoAnual","tablaTramos"
+  ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
+  function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
+
+  /* ---------------- Fecha de nacimiento ---------------- */
   function parseFecha(txt) {
     var n = String(txt || "").split(/[^0-9]+/).filter(Boolean).map(Number);
     if (!n.length) return null;
     var d, mes, anio;
     if (n.length === 1) { anio = n[0]; mes = 6; d = 30; }
     else if (n.length === 2) { mes = n[0]; anio = n[1]; d = 15; }
-    else if (n[0] > 31) { anio = n[0]; mes = n[1]; d = n[2]; }   // aaaa-mm-dd
-    else { d = n[0]; mes = n[1]; anio = n[2]; }                  // dd-mm-aaaa
+    else if (n[0] > 31) { anio = n[0]; mes = n[1]; d = n[2]; }
+    else { d = n[0]; mes = n[1]; anio = n[2]; }
     if (anio < 100) anio += anio > 30 ? 1900 : 2000;
     if (anio < 1900 || anio > 2100 || mes < 1 || mes > 12 || d < 1 || d > 31) return null;
     var f = new Date(anio, mes - 1, d);
@@ -656,28 +682,16 @@
   function edades() {
     var nac = parseFecha(el.fechaNac.value);
     if (!nac) return null;
-    var hoy = new Date();
-    var anios = (hoy - nac) / (365.2425 * 864e5);
-    // Un APV lo contrata un adulto: fechas futuras o menores de edad son error de tipeo.
+    var anios = (new Date() - nac) / (365.2425 * 864e5);
     if (anios < 0) return { error: "futura" };
     if (anios < 18) return { error: "menor" };
     if (anios > 110) return { error: "rango" };
-    var retiro = Math.min(90, Math.max(40, Math.round(dec(el.edadRetiro) || 65)));
-    return {
-      nac: nac,
-      cumplida: Math.floor(anios),
-      actuarial: Math.round(anios),
-      retiro: retiro,
-      aniosRestantes: Math.max(0, retiro - anios)
-    };
+    return { nac: nac, cumplida: Math.floor(anios), actuarial: Math.round(anios) };
   }
 
-  function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
-  function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
-
-  /* ---------------- Motor de cálculo ---------------- */
+  /* ---------------- Motor tributario ---------------- */
   function params() {
-    var uf = dec(el.uf) || 41000;
+    var uf = dec(el.uf) || 40845;
     return {
       uf: uf,
       topeImp: uf * (dec(el.topeImp) || 87.8),
@@ -693,7 +707,7 @@
     };
   }
 
-  // Liquidación mensual a partir del bruto
+  // apv = todo lo que se aporta; solo rebaja base si el régimen es B.
   function liquidar(bruto, apv, regimen, p) {
     var imponible = Math.min(bruto, p.topeImp);
     var afp = imponible * (0.10 + p.comision);
@@ -701,22 +715,18 @@
     var saludPagada = p.isapre ? Math.max(saludLegal, p.plan) : saludLegal;
     var afc = p.afc ? Math.min(bruto, p.topeAfc) * 0.006 : 0;
     var apvDeducible = regimen === "B" ? Math.min(apv, p.topeApv) : 0;
-
     var rli = Math.max(0, bruto - afp - saludLegal - afc - apvDeducible);
     var impuesto = impuestoMensual(rli);
-    var liquido = bruto - afp - saludPagada - afc - apv - impuesto;
-
     return {
       bruto: bruto, imponible: imponible, afp: afp,
       saludLegal: saludLegal, saludPagada: saludPagada, saludExtra: saludPagada - saludLegal,
       afc: afc, apv: apv, apvDeducible: apvDeducible,
-      prevision: afp + saludPagada + afc,
-      rli: rli, impuesto: impuesto, liquido: liquido,
+      rli: rli, impuesto: impuesto,
+      liquido: bruto - afp - saludPagada - afc - apv - impuesto,
       tramo: tramoDe(rli)
     };
   }
 
-  // Bruto a partir del líquido deseado (bisección — liquidar() es monótona)
   function brutoDesdeLiquido(objetivo, apv, regimen, p) {
     if (objetivo <= 0) return 0;
     var lo = objetivo, hi = objetivo * 4 + apv * 12 + 1000000;
@@ -727,10 +737,8 @@
     return (lo + hi) / 2;
   }
 
-  // Consolidado anual: sueldo + honorarios + APV
-  function anual(mes, honBrutoAnual, apvMensual, regimen, p) {
+  function anual(mes, honBrutoAnual, apv, regimen, p) {
     var baseSueldo = mes.rli * 12;
-
     var gastos = Math.min(honBrutoAnual * 0.30, 15 * UTA);
     var baseHon = Math.max(0, honBrutoAnual - gastos);
     var retenido = honBrutoAnual * p.retencion;
@@ -742,79 +750,76 @@
       cot = baseCot * p.tasaIndep;
     }
 
-    // APV régimen B que no alcanzó a descontarse por planilla (caso sin sueldo)
-    var apvB = regimen === "B" ? Math.min(apvMensual, p.topeApv) : 0;
+    var apvB = regimen === "B" ? Math.min(apv, p.topeApv) : 0;
     var apvPendiente = Math.max(0, apvB * 12 - mes.apvDeducible * 12);
-
     var baseGC = Math.max(0, baseSueldo + baseHon - cot - apvPendiente);
     var gc = impuestoMensual(baseGC / 12) * 12;
-
     var iusc = mes.impuesto * 12;
-    var creditos = iusc + retenido;
-    var caja = creditos - gc - cot;
 
     return {
       baseSueldo: baseSueldo, honBruto: honBrutoAnual, gastos: gastos, baseHon: baseHon,
-      retenido: retenido, baseCot: baseCot, cot: cot, apvPendiente: apvPendiente,
-      baseGC: baseGC, gc: gc, iusc: iusc, creditos: creditos, caja: caja,
-      impuestoTotal: gc
+      retenido: retenido, cot: cot, baseGC: baseGC, gc: gc, iusc: iusc,
+      creditos: iusc + retenido, caja: iusc + retenido - gc - cot, impuestoTotal: gc
+    };
+  }
+
+  /* Arma un escenario completo: liquidación, impuesto, seguro y costo real. */
+  function escenario(bruto, aporte, seguroDentro, seguroFuera, regimen, honAnual, p) {
+    var apvTotal = aporte + seguroDentro;
+    var m = liquidar(bruto, apvTotal, regimen, p);
+    var a = anual(m, honAnual, apvTotal, regimen, p);
+
+    var sin = liquidar(bruto, 0, regimen, p);
+    var aSin = anual(sin, honAnual, 0, regimen, p);
+
+    var rebaja = Math.max(0, (aSin.impuestoTotal - a.impuestoTotal) / 12);
+    var bono = regimen === "A" ? Math.min(0.15 * apvTotal * 12, 6 * UTM) / 12 : 0;
+    var desembolso = apvTotal + seguroFuera;
+
+    return {
+      m: m, a: a, apvTotal: apvTotal, aporte: aporte,
+      seguroDentro: seguroDentro, seguroFuera: seguroFuera,
+      regimen: regimen, rebaja: rebaja, bono: bono,
+      desembolso: desembolso,
+      costoReal: desembolso - rebaja,
+      disponible: m.liquido - seguroFuera,
+      impSin: aSin.impuestoTotal / 12
     };
   }
 
   /* ---------------- Render ---------------- */
-  var COL = { liquido: "var(--teal)", apv: "var(--gold)", prev: "var(--blue)", imp: "var(--clay)" };
-
   function render() {
     var p = params();
-    var aporte = num(el.apv);            // ahorro puro
-    var seguroApv = num(el.seguroApv);   // prima del seguro que va DENTRO del APV: también deduce
-    var apv = aporte + seguroApv;        // todo lo que rebaja base
+    var aporteHoy = num(el.apvHoy), segFuera = num(el.seguroFuera);
+    var aporteProp = num(el.apvProp), segDentro = num(el.seguroApv);
 
-    // --- Sueldo ---
+    // El bruto se ancla en la situación actual: es el sueldo que la persona tiene hoy.
     var entrada = num(el.sueldo);
-    var bruto = S.modoSueldo === "bruto" ? entrada : brutoDesdeLiquido(entrada, apv, S.regimen, p);
-    var m = liquidar(bruto, apv, S.regimen, p);
+    var bruto = S.modoSueldo === "bruto"
+      ? entrada
+      : brutoDesdeLiquido(entrada, aporteHoy, S.regHoy, p) ;
 
-    // --- Honorarios a bruto anual ---
     var hEnt = num(el.honorarios);
     var hBruto = S.modoHon === "bruto" ? hEnt : (p.retencion < 1 ? hEnt / (1 - p.retencion) : hEnt);
-    var honBrutoAnual = S.periodoHon === "anual" ? hBruto : hBruto * 12;
+    var honAnual = S.periodoHon === "anual" ? hBruto : hBruto * 12;
 
-    var a = anual(m, honBrutoAnual, apv, S.regimen, p);
+    var A = escenario(bruto, aporteHoy, 0, segFuera, S.regHoy, honAnual, p);
+    var B = escenario(bruto, aporteProp, segDentro, 0, S.regProp, honAnual, p);
+    var hayProp = (aporteProp + segDentro) > 0;
 
-    // --- Escenarios de APV, siempre ambos, con el mismo bruto ---
-    // Sin APV, y con el aporte acogido al régimen B: la diferencia es el ahorro real de impuesto.
-    var mSin = liquidar(bruto, 0, "B", p);
-    var aSin = anual(mSin, honBrutoAnual, 0, "B", p);
-    var mConB = liquidar(bruto, apv, "B", p);
-    var aConB = anual(mConB, honBrutoAnual, apv, "B", p);
+    pintarStrip(A, B, hayProp, honAnual);
+    pintarLiquidacion(A, B, hayProp, p);
+    pintarCosto(A, B, hayProp);
+    pintarRegimen(A, B, hayProp, p);
+    pintarAnual(A.a, honAnual, p);
+    pintarTramos(honAnual > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo);
+    pintarEdad();
 
-    var apvAnual = apv * 12;
-    var ahorroB = Math.max(0, aSin.impuestoTotal - aConB.impuestoTotal);
-    var bonoA = Math.min(0.15 * apvAnual, 6 * UTM);
+    el.hdModo.textContent = S.modoSueldo === "bruto" ? "bruto ingresado" : "bruto calculado: " + $(bruto);
+  }
 
-    var seguro = num(el.seguroVida);   // el que va por fuera: no deduce
+  function pintarEdad() {
     var ed = edades();
-
-    // ¿Cuánto se ahorraría si ese seguro externo también estuviera dentro del APV?
-    // Es la comparación directa entre las dos estructuras, a igual desembolso.
-    var mDentro = liquidar(bruto, apv + seguro, "B", p);
-    var aDentro = anual(mDentro, honBrutoAnual, apv + seguro, "B", p);
-    var ahorroSiDentro = Math.max(0, aConB.impuestoTotal - aDentro.impuestoTotal);
-
-    pintarStrip(m, a, honBrutoAnual, p, seguro);
-    pintarBarra(m);
-    pintarMes(m, p, seguro);
-    pintarApv({
-      aporte: aporte, seguroApv: seguroApv, apv: apv,
-      apvAnual: apvAnual, ahorroB: ahorroB, bonoA: bonoA,
-      impSin: aSin.impuestoTotal, impConB: aConB.impuestoTotal, p: p,
-      seguro: seguro, seguroAnual: seguro * 12, ahorroSiDentro: ahorroSiDentro
-    });
-    pintarProyeccion(ed, aporte, ahorroB, seguro + seguroApv, S.regimen === "A" ? bonoA : 0);
-    pintarAnual(a, honBrutoAnual, p);
-    pintarTramos(S.tramoAnual);
-
     var avisos = {
       futura: "Esa fecha está en el futuro. Revisa el año.",
       menor: "El titular tiene que ser mayor de 18 años.",
@@ -822,325 +827,186 @@
     };
     el.notaEdad.innerHTML = (ed && !ed.error)
       ? "Nació el <b>" + ed.nac.getDate() + " de " + MESES[ed.nac.getMonth()] + " de " + ed.nac.getFullYear() +
-        "</b>. Tiene " + ed.cumplida + " años cumplidos (edad actuarial " + ed.actuarial +
-        "). Faltan " + ed.aniosRestantes.toFixed(1).replace(".", ",") + " años para los " + ed.retiro + "."
+        "</b>. Tiene <b>" + ed.cumplida + " años</b> cumplidos, edad actuarial " + ed.actuarial + "."
       : (ed && ed.error) ? "<b>" + avisos[ed.error] + "</b>"
       : (el.fechaNac.value.trim()
           ? "No entendí esa fecha. Escríbela como <b>dd-mm-aaaa</b>, por ejemplo 15-02-1974."
-          : "Opcional, para proyectar el APV hasta la jubilación. Escríbela como dd-mm-aaaa.");
-  }
-
-  function pintarStrip(m, a, hon, p, seguro) {
-    var tasaEf = m.bruto > 0 ? m.impuesto / m.bruto : 0;
-    // Con boletas, el tramo que manda es el del Global Complementario, no el del sueldo solo.
-    var iTramo = hon > 0 ? tramoDe(a.baseGC / 12) : m.tramo;
-    var tramo = TABLA[iTramo];
-    var subTramo = hon > 0
-      ? "sumando sueldo y boletas"
-      : (iTramo > 0 ? "sobre el próximo peso" : "no pagas impuesto");
-
-    var caja = a.caja;
-    var cajaCls = hon > 0 ? (caja >= 0 ? "pos" : "neg") : "";
-    var cajaLbl = hon > 0 ? (caja >= 0 ? "Devolución en abril" : "A pagar en abril") : "Impuesto anual";
-    var cajaVal = hon > 0 ? $(Math.abs(caja)) : $(a.impuestoTotal);
-    var cajaSub = hon > 0
-      ? (caja >= 0 ? "te sobra de lo retenido" : "las boletas quedaron cortas")
-      : "12 meses de segunda categoría";
-
-    el.strip.innerHTML =
-      (seguro > 0
-        ? stat("Te queda disponible", $(m.liquido - seguro), "después de pagar el seguro", "")
-        : stat("Líquido del sueldo", $(m.liquido), "cada mes, a tu cuenta", "")) +
-      stat("Impuesto mensual", $(m.impuesto), "tasa efectiva " + pct(tasaEf), "") +
-      stat("Tramo marginal", tramo.etq, subTramo, "") +
-      stat(cajaLbl, cajaVal, cajaSub, cajaCls);
-
-    S.tramoAnual = iTramo;
-
-    el.hdModo.textContent = S.modoSueldo === "bruto"
-      ? "bruto ingresado"
-      : "bruto calculado: " + $(m.bruto);
+          : "Escríbela como dd-mm-aaaa, por ejemplo 15-02-1974.");
   }
 
   function stat(k, v, s, cls) {
-    return '<div class="stat ' + cls + '"><span class="k">' + k + '</span>' +
+    return '<div class="stat ' + (cls || "") + '"><span class="k">' + k + '</span>' +
            '<span class="v">' + v + '</span><span class="s">' + s + '</span></div>';
   }
 
-  function pintarBarra(m) {
-    var segs = [
-      { nm: "Líquido",   val: Math.max(0, m.liquido), c: COL.liquido },
-      { nm: "APV",       val: m.apv,                  c: COL.apv },
-      { nm: "Previsión", val: m.prevision,            c: COL.prev },
-      { nm: "Impuesto",  val: m.impuesto,             c: COL.imp }
-    ].filter(function (s) { return s.val > 0; });
-
-    var total = segs.reduce(function (t, s) { return t + s.val; }, 0) || 1;
-
-    el.bar.innerHTML = segs.map(function (s) {
-      return '<i style="flex-grow:' + s.val + ';background:' + s.c + '" title="' + s.nm + ' ' + $(s.val) + '"></i>';
-    }).join("");
-
-    el.legend.innerHTML = segs.map(function (s) {
-      return '<span class="li"><span class="sw" style="background:' + s.c + '"></span>' +
-             '<span class="nm">' + s.nm + '</span>' +
-             '<span class="am">' + $(s.val) + '</span>' +
-             '<span class="pc">' + pct(s.val / total) + '</span></span>';
-    }).join("");
-  }
-
-  function fila(nombre, valor, opts) {
-    opts = opts || {};
-    var cls = opts.cls ? ' class="' + opts.cls + '"' : "";
-    var nCls = "n" + (opts.color ? " " + opts.color : "");
-    return '<tr' + cls + '><td' + (opts.sub ? ' class="sub"' : "") + '>' + nombre + '</td>' +
-           '<td class="tag">' + (opts.tag || "") + '</td>' +
-           '<td class="' + nCls + '">' + valor + '</td></tr>';
-  }
-
-  function pintarMes(m, p, seguro) {
-    var h = "";
-    h += fila("Sueldo bruto", $(m.bruto), { tag: m.imponible < m.bruto ? "imponible " + $(m.imponible) : "" });
-    h += fila("AFP + comisión", "−" + $(m.afp), { sub: true, cls: "rule", tag: pct(0.10 + p.comision, 2), color: "neg" });
-    h += fila(p.isapre ? "Salud (7% legal)" : "Salud — Fonasa", "−" + $(m.saludLegal), { sub: true, tag: "7%", color: "neg" });
-    if (m.saludExtra > 0.5) h += fila("Plan isapre sobre el 7%", "−" + $(m.saludExtra), { sub: true, tag: "no deducible", color: "neg" });
-    if (m.afc > 0) h += fila("Seguro de cesantía", "−" + $(m.afc), { sub: true, tag: "0,6%", color: "neg" });
-    if (m.apv > 0) h += fila("APV — régimen " + S.regimen, "−" + $(m.apv), { sub: true, tag: S.regimen === "B" ? "rebaja base" : "sin rebaja", color: "neg" });
-
-    h += fila("<b>Renta líquida imponible</b>", "<b>" + $(m.rli) + "</b>", { cls: "rule", tag: "base del impuesto" });
-    h += fila("Impuesto único", "−" + $(m.impuesto), {
-      sub: true,
-      tag: m.tramo === 0 ? "exento" : pct(TABLA[m.tramo].f, 1) + " − " + $(TABLA[m.tramo].r),
-      color: "neg"
-    });
-    if (seguro > 0) {
-      h += fila("Sueldo líquido", $(m.liquido), { cls: "rule" });
-      h += fila("Seguro de vida por fuera", "−" + $(seguro), { sub: true, tag: "no deducible", color: "neg" });
-      h += fila("Te queda disponible", $(m.liquido - seguro), { cls: "total", color: "posv" });
-    } else {
-      h += fila("Sueldo líquido", $(m.liquido), { cls: "total", color: "posv" });
-    }
-
-    el.tablaMes.innerHTML = h;
-  }
-
-  /* Proyecta el APV hasta la jubilación con una tasa real editable, y muestra
-     el gasto real mensual = aporte + seguro por fuera − lo que devuelve el fisco. */
-  function pintarProyeccion(ed, apv, ahorroB, seguro, bonoA) {
-    if (!ed || ed.error) {
-      el.hdProy.textContent = "sin fecha";
-      el.wrapTasa.hidden = true;
-      el.bdProy.innerHTML = '<p class="empty">Pon la fecha de nacimiento arriba para proyectar cuánto acumula el APV hasta la jubilación.</p>';
+  function pintarStrip(A, B, hayProp, hon) {
+    var tramo = TABLA[hon > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo];
+    if (!hayProp) {
+      el.strip.innerHTML =
+        stat("Te queda disponible", $(A.disponible), A.seguroFuera > 0 ? "después del seguro" : "cada mes", "") +
+        stat("Impuesto mensual", $(A.m.impuesto), "tasa efectiva " + pct(A.m.bruto > 0 ? A.m.impuesto / A.m.bruto : 0), "") +
+        stat("Costo real del ahorro", $(A.costoReal), "aporte menos rebaja", "") +
+        stat("Tramo marginal", tramo.etq, hon > 0 ? "sumando boletas" : "sobre el próximo peso", "");
       return;
     }
-    if (apv <= 0 && seguro <= 0) {
-      el.hdProy.textContent = ed.cumplida + " años";
-      el.wrapTasa.hidden = true;
-      el.bdProy.innerHTML = '<p class="empty">Agrega un aporte de APV o una prima de seguro para ver la proyección.</p>';
-      return;
-    }
-
-    var n = ed.aniosRestantes;
-    el.hdProy.textContent = "a los " + ed.retiro + " años";
-    el.wrapTasa.hidden = false;
-
-    var tasa = (dec(el.tasaReal) || 0) / 100;
-    var meses = Math.round(n * 12);
-    var mm = Math.pow(1 + tasa, 1 / 12) - 1;
-    var saldo = 0;
-    for (var i = 0; i < meses; i++) saldo = (saldo + apv) * (1 + mm);
-
-    var aportado = apv * meses;
-    var ahorroMes = ahorroB / 12 + bonoA / 12;
-    var gastoReal = apv + seguro - ahorroMes;
-
-    var h = '<div class="callout good"><span class="hd">Tu gasto real es ' + $(gastoReal) + ' al mes</span>' +
-      'Pones <b>' + $(apv) + '</b> de APV' + (seguro > 0 ? ' más <b>' + $(seguro) + '</b> de seguro' : '') +
-      ', y el fisco te devuelve <b>' + $(ahorroMes) + '</b>. Esa es la cifra a comparar contra cualquier alternativa.</div>';
-
-    h += '<table class="ledger">' +
-      fila("Años hasta los " + ed.retiro, n.toFixed(1).replace(".", ",") + " años", { tag: "edad actuarial " + ed.actuarial }) +
-      fila("Aporte mensual al APV", $(apv), { sub: true, cls: "rule" }) +
-      fila("Total que habrá aportado", $(aportado), { sub: true }) +
-      fila("Rentabilidad acumulada", $(saldo - aportado), { sub: true, tag: pct(tasa, 1) + " real anual", color: "posv" }) +
-      fila("Saldo proyectado al retiro", $(saldo), { cls: "total", color: "posv" }) +
-      '</table>';
-
-    h += '<p class="note">En pesos de hoy: la rentabilidad real ya descuenta la inflación. ' +
-      'El ahorro de impuesto del régimen B llega mes a mes como mayor líquido, no se acumula solo — ' +
-      'si quieres contarlo como patrimonio, hay que invertirlo aparte.</p>';
-
-    el.bdProy.innerHTML = h;
+    var dif = A.costoReal - B.costoReal;
+    el.strip.innerHTML =
+      stat("Costo hoy", $(A.costoReal), "al mes, después de impuesto", "") +
+      stat("Costo propuesta", $(B.costoReal), "al mes, después de impuesto", "") +
+      stat(dif >= 0 ? "Te ahorras" : "Te cuesta más", $(Math.abs(dif)), "al mes · " + $(Math.abs(dif) * 12) + " al año", dif >= 0 ? "pos" : "neg") +
+      stat("Tramo marginal", tramo.etq, hon > 0 ? "sumando boletas" : "sobre el próximo peso", "");
   }
 
-  function pintarApv(x) {
-    var apv = x.apv, apvAnual = x.apvAnual, ahorroB = x.ahorroB, bonoA = x.bonoA, p = x.p;
+  /* Tabla comparativa de dos columnas. cols = [{k, v}] */
+  function filaComp(nombre, a, b, o) {
+    o = o || {};
+    var cls = o.cls ? ' class="' + o.cls + '"' : "";
+    var nCls = "n" + (o.color ? " " + o.color : "");
+    return '<tr' + cls + '><td' + (o.sub ? ' class="sub"' : "") + '>' + nombre + '</td>' +
+           '<td class="' + nCls + '">' + a + '</td>' +
+           (b === null ? "" : '<td class="' + nCls + ' col2">' + b + '</td>') + '</tr>';
+  }
 
-    if (apv <= 0 && x.seguroAnual <= 0) {
-      el.hdApv.textContent = "sin aporte";
-      el.bdApv.innerHTML = '<p class="empty">Pon un monto de APV arriba para ver cuánto impuesto te ahorra y cuánto te cuesta de verdad.</p>';
+  function encabezado(hayProp) {
+    return '<thead><tr><th></th><th>Hoy</th>' + (hayProp ? '<th class="col2">Propuesta</th>' : "") + '</tr></thead>';
+  }
+
+  function pintarLiquidacion(A, B, hayProp, p) {
+    var d = function (f) { return hayProp ? f(B) : null; };
+    var h = encabezado(hayProp) + "<tbody>";
+    h += filaComp("Sueldo bruto", $(A.m.bruto), d(function (x) { return $(x.m.bruto); }));
+    h += filaComp("AFP + comisión", "−" + $(A.m.afp), d(function (x) { return "−" + $(x.m.afp); }), { sub: true, cls: "rule", color: "neg" });
+    h += filaComp(p.isapre ? "Salud (7% legal)" : "Salud — Fonasa", "−" + $(A.m.saludLegal), d(function (x) { return "−" + $(x.m.saludLegal); }), { sub: true, color: "neg" });
+    if (A.m.saludExtra > 0.5) h += filaComp("Plan isapre sobre el 7%", "−" + $(A.m.saludExtra), d(function (x) { return "−" + $(x.m.saludExtra); }), { sub: true, color: "neg" });
+    if (A.m.afc > 0) h += filaComp("Seguro de cesantía", "−" + $(A.m.afc), d(function (x) { return "−" + $(x.m.afc); }), { sub: true, color: "neg" });
+    h += filaComp("APV que rebaja base", "−" + $(A.m.apvDeducible), d(function (x) { return "−" + $(x.m.apvDeducible); }), { sub: true, color: "neg" });
+    h += filaComp("<b>Renta líquida imponible</b>", "<b>" + $(A.m.rli) + "</b>", d(function (x) { return "<b>" + $(x.m.rli) + "</b>"; }), { cls: "rule" });
+    h += filaComp("Impuesto único", "−" + $(A.m.impuesto), d(function (x) { return "−" + $(x.m.impuesto); }), { sub: true, color: "neg" });
+    h += filaComp("Sueldo líquido", $(A.m.liquido), d(function (x) { return $(x.m.liquido); }), { cls: "total", color: "posv" });
+    el.tablaLiq.innerHTML = h + "</tbody>";
+  }
+
+  function pintarCosto(A, B, hayProp) {
+    var d = function (f) { return hayProp ? f(B) : null; };
+    var h = encabezado(hayProp) + "<tbody>";
+    h += filaComp("Aporte al APV", $(A.aporte), d(function (x) { return $(x.aporte); }));
+    h += filaComp("Seguro de vida", $(A.seguroFuera), d(function (x) { return $(x.seguroDentro); }), { sub: true });
+    h += filaComp("", "<i>por fuera · no deduce</i>", hayProp ? "<i>dentro del APV · deduce</i>" : null, { sub: true, cls: "glosa" });
+    h += filaComp("<b>Desembolso total</b>", "<b>" + $(A.desembolso) + "</b>", d(function (x) { return "<b>" + $(x.desembolso) + "</b>"; }), { cls: "rule" });
+    h += filaComp("Impuesto sin APV", $(A.impSin), d(function (x) { return $(x.impSin); }), { sub: true, cls: "rule" });
+    h += filaComp("Impuesto con APV", $(A.m.impuesto), d(function (x) { return $(x.m.impuesto); }), { sub: true });
+    h += filaComp("Rebaja de impuesto", "−" + $(A.rebaja), d(function (x) { return "−" + $(x.rebaja); }), { sub: true, color: "posv" });
+    if (A.bono > 0 || (hayProp && B.bono > 0)) {
+      h += filaComp("Bono del Estado al fondo", A.bono > 0 ? "+" + $(A.bono) : "—", d(function (x) { return x.bono > 0 ? "+" + $(x.bono) : "—"; }), { sub: true, color: "posv" });
+    }
+    h += filaComp("<b>Costo real</b>", "<b>" + $(A.costoReal) + "</b>", d(function (x) { return "<b>" + $(x.costoReal) + "</b>"; }), { cls: "total" });
+    el.tablaCosto.innerHTML = h + "</tbody>";
+
+    if (!hayProp) {
+      el.veredicto.innerHTML = '<p class="note">Carga la situación propuesta para comparar las dos alternativas.</p>';
       return;
     }
-
-    el.hdApv.textContent = "régimen " + S.regimen;
-
-    var ahorroMes = ahorroB / 12;
-    var retorno = ahorroB / apvAnual;
-    var mejorB = ahorroB >= bonoA;
-    var h = "";
-
-    if (S.regimen === "B") {
-      h += '<div class="callout ' + (ahorroB > 0 ? "good" : "warn") + '">' +
-           '<span class="hd">' + (ahorroB > 0
-              ? "Aportas " + $(apv) + " al mes y te cuesta " + $(apv - ahorroMes) + ""
-              : "Con esta renta el régimen B no te rebaja nada") + '</span>' +
-           (ahorroB > 0
-              ? "El fisco pone la diferencia: <b>" + $(ahorroMes) + "</b> al mes, <b>" + $(ahorroB) + "</b> al año. Es un <b>" + pct(retorno) + "</b> de retorno inmediato sobre lo aportado, antes de cualquier rentabilidad del fondo."
-              : "Tu base imponible queda en tramo exento, así que descontar el aporte no baja el impuesto. El régimen A sí te sirve.") +
-           '</div>';
+    var dif = A.costoReal - B.costoReal;
+    var difApv = B.apvTotal - A.apvTotal;
+    if (dif > 0) {
+      el.veredicto.innerHTML = '<div class="callout good"><span class="hd">La propuesta le cuesta ' + $(dif) + ' menos al mes</span>' +
+        (difApv > 0 ? 'Y además ahorra <b>' + $(difApv) + '</b> más. ' : '') +
+        'Son <b>' + $(dif * 12) + '</b> al año. La diferencia viene de que la prima del seguro pasa a rebajar impuesto.</div>';
+    } else if (dif < 0) {
+      el.veredicto.innerHTML = '<div class="callout warn"><span class="hd">La propuesta le cuesta ' + $(-dif) + ' más al mes</span>' +
+        (difApv > 0 ? 'A cambio ahorra <b>' + $(difApv) + '</b> más cada mes.' : 'Revisa los montos: con el mismo desembolso debería costar menos.') + '</div>';
     } else {
-      h += '<div class="callout gold">' +
-           '<span class="hd">El Estado te deposita ' + $(bonoA) + ' al año en el fondo</span>' +
-           'Es el 15% de tu aporte anual de <b>' + $(apvAnual) + '</b>' +
-           (0.15 * apvAnual > 6 * UTM ? ", topado en 6 UTM (<b>" + $(6 * UTM) + "</b>)" : "") +
-           '. Esa plata queda dentro del APV, no en tu bolsillo, y no rebaja tu impuesto.' +
-           '</div>';
+      el.veredicto.innerHTML = '<div class="callout good"><span class="hd">Las dos cuestan lo mismo</span>Ajusta los montos para ver la diferencia.</div>';
     }
+  }
 
-    var segAnual = x.seguroAnual;
-    var deducible = S.regimen === "B" ? ahorroB : 0;
-    var costoApv = apvAnual - deducible;
-
-    h += '<table class="ledger">';
-    if (x.seguroApv > 0) {
-      h += fila("Aporte anual al APV", $(x.aporte * 12), { tag: $(x.aporte) + "/mes" }) +
-           fila("Prima anual del seguro con APV", $(x.seguroApv * 12), { sub: true, tag: $(x.seguroApv) + "/mes · deducible" }) +
-           fila("<b>Total que rebaja impuesto</b>", "<b>" + $(apvAnual) + "</b>", { cls: "rule" });
-    } else {
-      h += fila("Aporte anual al APV", $(apvAnual), { tag: $(apv) + "/mes" });
+  function pintarRegimen(A, B, hayProp, p) {
+    var X = hayProp ? B : A;
+    if (X.apvTotal <= 0) {
+      el.hdReg.textContent = "sin aporte";
+      el.bdReg.innerHTML = '<p class="empty">Carga un APV para ver qué régimen conviene.</p>';
+      return;
     }
+    var anualAporte = X.apvTotal * 12;
+    // Régimen B: lo que baja el impuesto. Régimen A: 15% al fondo, tope 6 UTM.
+    var conB = escenario(X.m.bruto, X.aporte, X.seguroDentro, X.seguroFuera, "B", 0, p);
+    var ahorroB = conB.rebaja * 12;
+    var bonoA = Math.min(0.15 * anualAporte, 6 * UTM);
+    var ganaB = ahorroB >= bonoA;
 
-    if (S.regimen === "B") {
-      h += fila("Impuesto del año sin APV", $(x.impSin), { sub: true, cls: "rule" }) +
-           fila("Impuesto del año con APV", $(x.impConB), { sub: true }) +
-           fila("<b>Ahorro de impuesto</b>", "<b>" + $(ahorroB) + "</b>", { cls: "rule", color: "posv" });
-    } else {
-      h += fila("Bonificación del Estado", "+" + $(bonoA), { sub: true, cls: "rule", tag: "15%, tope 6 UTM", color: "posv" }) +
-           fila("Impuesto del año", $(x.impSin), { sub: true, tag: "no cambia" }) +
-           fila("Entra al fondo", $(apvAnual + bonoA), { sub: true, color: "posv" });
+    el.hdReg.textContent = hayProp ? "sobre la propuesta" : "sobre la situación actual";
+    var h = '<div class="duo">' +
+      '<div class="regbox' + (ganaB ? " win" : "") + '"><span class="rt">Régimen B — rebaja base</span>' +
+      '<span class="rv">' + $(ahorroB) + '</span>' +
+      '<span class="rd">Menos impuesto al año. Llega como mayor líquido mes a mes.</span>' +
+      (ganaB ? '<span class="badge">Recomendado</span>' : "") + '</div>' +
+      '<div class="regbox' + (!ganaB ? " win" : "") + '"><span class="rt">Régimen A — bono 15%</span>' +
+      '<span class="rv">' + $(bonoA) + '</span>' +
+      '<span class="rd">Aporte del Estado al fondo, al año. Tope 6 UTM (' + $(6 * UTM) + ').</span>' +
+      (!ganaB ? '<span class="badge">Recomendado</span>' : "") + '</div></div>';
+
+    var elegido = X.regimen;
+    if ((ganaB && elegido !== "B") || (!ganaB && elegido !== "A")) {
+      h += '<div class="callout warn"><span class="hd">Tienes marcado el régimen ' + elegido + '</span>' +
+        'Con esta renta y este aporte conviene el <b>régimen ' + (ganaB ? "B" : "A") + '</b>: son <b>' +
+        $(Math.abs(ahorroB - bonoA)) + '</b> de diferencia al año.</div>';
     }
-
-    if (segAnual > 0) {
-      h += fila("Costo real del APV", $(costoApv), { cls: "rule" }) +
-           fila("Seguro de vida por fuera", "+" + $(segAnual), { sub: true, tag: $(x.seguro) + "/mes · no deducible", color: "neg" }) +
-           fila("<b>Costo total incluyendo seguro</b>", "<b>" + $(costoApv + segAnual) + "</b>", { cls: "total" });
-    } else {
-      h += fila("Costo real de tu bolsillo", $(costoApv), { cls: "total" });
+    if (X.apvTotal > p.topeApv) {
+      h += '<div class="callout warn"><span class="hd">Sobre el tope del régimen B</span>' +
+        'Solo <b>' + $(p.topeApv) + '</b> al mes (50 UF) rebajan base. El exceso de <b>' + $(X.apvTotal - p.topeApv) + '</b> no descuenta impuesto.</div>';
     }
-    h += '</table>';
+    el.bdReg.innerHTML = h;
+  }
 
-    // Comparación directa entre las dos estructuras, con el mismo desembolso.
-    if (segAnual > 0 && S.regimen === "B") {
-      var costoFuera = costoApv + segAnual;
-      var costoDentro = costoFuera - x.ahorroSiDentro;
-      h += '<div class="duo">' +
-        '<div class="regbox"><span class="rt">Con el seguro por fuera</span>' +
-        '<span class="rv">' + $(costoFuera) + '</span>' +
-        '<span class="rd">Al año. La prima no rebaja nada: sale entera de tu líquido.</span></div>' +
-        '<div class="regbox' + (x.ahorroSiDentro > 0 ? " win" : "") + '"><span class="rt">Con el seguro dentro del APV</span>' +
-        '<span class="rv">' + $(costoDentro) + '</span>' +
-        '<span class="rd">Al año. La misma prima pasa a ser deducible.</span>' +
-        (x.ahorroSiDentro > 0 ? '<span class="badge">Ahorras ' + $(x.ahorroSiDentro) + '</span>' : "") +
-        '</div></div>';
-      if (x.ahorroSiDentro > 0) {
-        h += '<p class="note">Mismo desembolso, misma cobertura: mover ese seguro dentro de un producto con APV te deja <b>' +
-          $(x.ahorroSiDentro / 12) + '</b> más al mes, <b>' + $(x.ahorroSiDentro) + '</b> al año.</p>';
-      }
-    }
-
-    h += '<div class="duo">' +
-         '<div class="regbox' + (mejorB ? " win" : "") + '"><span class="rt">Régimen B — rebaja base</span>' +
-         '<span class="rv">' + $(ahorroB) + '</span>' +
-         '<span class="rd">Menos impuesto al año. Te llega como mayor líquido mes a mes.</span>' +
-         (mejorB ? '<span class="badge">Te conviene</span>' : "") + '</div>' +
-         '<div class="regbox' + (!mejorB ? " win" : "") + '"><span class="rt">Régimen A — bono 15%</span>' +
-         '<span class="rv">' + $(bonoA) + '</span>' +
-         '<span class="rd">Aporte del Estado al fondo, al año. Tope 6 UTM (' + $(6 * UTM) + ').</span>' +
-         (!mejorB ? '<span class="badge">Te conviene</span>' : "") + '</div>' +
-         '</div>';
-
-    if (S.regimen === "B" && apv > p.topeApv) {
-      h += '<div class="callout warn"><span class="hd">Estás sobre el tope del régimen B</span>' +
-           'Solo <b>' + $(p.topeApv) + '</b> al mes (50 UF) rebajan la base por planilla. El exceso de <b>' + $(apv - p.topeApv) + '</b> no descuenta impuesto en este cálculo.</div>';
-    }
-
-    el.bdApv.innerHTML = h;
+  function fila(nombre, valor, o) {
+    o = o || {};
+    return '<tr' + (o.cls ? ' class="' + o.cls + '"' : "") + '><td' + (o.sub ? ' class="sub"' : "") + '>' + nombre + '</td>' +
+           '<td class="tag">' + (o.tag || "") + '</td>' +
+           '<td class="n' + (o.color ? " " + o.color : "") + '">' + valor + '</td></tr>';
   }
 
   function pintarAnual(a, hon, p) {
-    var h = "";
-    h += fila("Base del sueldo", $(a.baseSueldo), { tag: "12 × renta imponible" });
-
-    if (hon > 0) {
-      h += fila("Boletas brutas", $(a.honBruto), { cls: "rule", tag: $(a.honBruto / 12) + "/mes" });
-      h += fila("Gastos presuntos 30%", "−" + $(a.gastos), { sub: true, tag: a.gastos >= 15 * UTA ? "tope 15 UTA" : "", color: "neg" });
-      h += fila("Base de honorarios", $(a.baseHon), { sub: true });
-      if (a.cot > 0) h += fila("Cotizaciones de independiente", "−" + $(a.cot), { sub: true, tag: pct(p.tasaIndep, 1) + " sobre 80%", color: "neg" });
-    }
-    if (a.apvPendiente > 0) h += fila("APV régimen B no descontado en planilla", "−" + $(a.apvPendiente), { sub: true, color: "neg" });
-
+    el.cardAnual.hidden = hon <= 0;
+    if (hon <= 0) return;
+    var h = fila("Base del sueldo", $(a.baseSueldo), { tag: "12 × renta imponible" });
+    h += fila("Boletas brutas", $(a.honBruto), { cls: "rule", tag: $(a.honBruto / 12) + "/mes" });
+    h += fila("Gastos presuntos 30%", "−" + $(a.gastos), { sub: true, color: "neg" });
+    if (a.cot > 0) h += fila("Cotizaciones de independiente", "−" + $(a.cot), { sub: true, tag: pct(p.tasaIndep, 1) + " sobre 80%", color: "neg" });
     h += fila("<b>Base Global Complementario</b>", "<b>" + $(a.baseGC) + "</b>", { cls: "rule" });
     h += fila("Impuesto Global Complementario", $(a.gc), { sub: true, tag: TABLA[tramoDe(a.baseGC / 12)].etq });
-    h += fila("Impuesto único ya pagado", "−" + $(a.iusc), { sub: true, cls: "rule", tag: "descontado del sueldo", color: "posv" });
-    if (hon > 0) h += fila("Retenciones de boletas", "−" + $(a.retenido), { sub: true, tag: pct(p.retencion, 2), color: "posv" });
-    if (a.cot > 0) h += fila("Cotizaciones a enterar", "+" + $(a.cot), { sub: true, tag: "se pagan con la retención", color: "neg" });
-
-    var etq = a.caja >= 0 ? "Devolución en abril 2027" : "A pagar en abril 2027";
-    h += fila("<b>" + etq + "</b>", "<b>" + $(Math.abs(a.caja)) + "</b>", { cls: "total", color: a.caja >= 0 ? "posv" : "neg" });
-
+    h += fila("Impuesto único ya pagado", "−" + $(a.iusc), { sub: true, cls: "rule", color: "posv" });
+    h += fila("Retenciones de boletas", "−" + $(a.retenido), { sub: true, tag: pct(p.retencion, 2), color: "posv" });
+    if (a.cot > 0) h += fila("Cotizaciones a enterar", "+" + $(a.cot), { sub: true, color: "neg" });
+    h += fila("<b>" + (a.caja >= 0 ? "Devolución en abril 2027" : "A pagar en abril 2027") + "</b>",
+      "<b>" + $(Math.abs(a.caja)) + "</b>", { cls: "total", color: a.caja >= 0 ? "posv" : "neg" });
     el.tablaAnual.innerHTML = h;
 
-    if (hon <= 0) {
-      el.resultadoAnual.innerHTML =
-        '<p class="note">Con solo sueldo, lo retenido mes a mes calza con el impuesto anual: no hay devolución ni pago. Si agregas boletas, aquí verás la diferencia.</p>';
-    } else if (a.caja >= 0) {
-      el.resultadoAnual.innerHTML =
-        '<div class="callout good"><span class="hd">Te devuelven ' + $(a.caja) + '</span>' +
-        'Entre el impuesto del sueldo y el ' + pct(p.retencion, 2) + ' retenido en las boletas ya adelantaste <b>' + $(a.creditos) + '</b>' +
-        (a.cot > 0 ? ', y de ahí salen <b>' + $(a.cot) + '</b> de cotizaciones' : '') +
-        '. El impuesto real del año fue <b>' + $(a.gc) + '</b>.</div>';
-    } else {
-      el.resultadoAnual.innerHTML =
-        '<div class="callout warn"><span class="hd">Tienes que pagar ' + $(Math.abs(a.caja)) + '</span>' +
-        'Las boletas se suman al sueldo y te empujan a un tramo más alto, pero solo retienen ' + pct(p.retencion, 2) +
-        (a.cot > 0 ? ' y esa retención además financia <b>' + $(a.cot) + '</b> de cotizaciones' : '') +
-        '. Guardando <b>' + $(Math.abs(a.caja) / 12) + '</b> al mes llegas cubierto a abril.</div>';
-    }
+    el.resultadoAnual.innerHTML = a.caja >= 0
+      ? '<div class="callout good"><span class="hd">Le devuelven ' + $(a.caja) + '</span>Ya adelantó <b>' + $(a.creditos) + '</b> entre impuesto del sueldo y retenciones.</div>'
+      : '<div class="callout warn"><span class="hd">Tiene que pagar ' + $(Math.abs(a.caja)) + '</span>Guardando <b>' + $(Math.abs(a.caja) / 12) + '</b> al mes llega cubierto a abril.</div>';
   }
 
   function pintarTramos(activo) {
     var h = '<thead><tr><th>Tramo</th><th>Desde</th><th>Hasta</th><th>Factor</th><th>Rebaja</th></tr></thead><tbody>';
     for (var i = 0; i < TABLA.length; i++) {
       var t = TABLA[i];
-      var desde = i === 0 ? "—" : $(TABLA[i - 1].hasta);
-      var hasta = t.hasta === Infinity ? "y más" : $(t.hasta);
       h += '<tr class="' + (i === activo ? "on" : "") + '">' +
-           '<td>' + t.etq + '</td><td>' + desde + '</td><td>' + hasta + '</td>' +
+           '<td>' + t.etq + '</td>' +
+           '<td>' + (i === 0 ? "—" : $(TABLA[i - 1].hasta)) + '</td>' +
+           '<td>' + (t.hasta === Infinity ? "y más" : $(t.hasta)) + '</td>' +
            '<td>' + (t.f === 0 ? "—" : t.f.toString().replace(".", ",")) + '</td>' +
            '<td>' + (t.r === 0 ? "—" : $(t.r)) + '</td></tr>';
     }
-    return el.tablaTramos.innerHTML = h + "</tbody>";
+    el.tablaTramos.innerHTML = h + "</tbody>";
   }
 
-  /* ---------------- Inputs de dinero con formato en vivo ---------------- */
+  /* ---------------- Inputs ---------------- */
   function formatearMoneda(input) {
-    var crudo = input.value;
-    var pos = input.selectionStart || 0;
+    var crudo = input.value, pos = input.selectionStart || 0;
     var digitosAntes = crudo.slice(0, pos).replace(/\D/g, "").length;
     var digitos = crudo.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
     var salida = digitos ? nf.format(Number(digitos)) : "";
     input.value = salida;
-
     var vistos = 0, caret = salida.length;
     if (digitosAntes === 0) caret = 0;
     else for (var i = 0; i < salida.length; i++) {
@@ -1149,77 +1015,60 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apv", "seguroVida", "seguroApv"].forEach(function (id) {
+  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
 
-  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
-   "edadRetiro", "tasaReal"].forEach(function (id) {
+  ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
-  el.fechaNac.addEventListener("change", render);
   el.fechaNac.addEventListener("input", render);
 
   el.afp.addEventListener("change", function () {
     el.comision.value = (Number(el.afp.value) * 100).toFixed(2);
     render();
   });
-  el.comision.addEventListener("input", function () {
-    var v = (dec(el.comision) / 100).toFixed(4);
-    el.afp.value = Array.prototype.some.call(el.afp.options, function (o) { return o.value === v; }) ? v : el.afp.value;
-  });
-
-  el.isapre.addEventListener("change", function () {
-    el.wrapPlan.hidden = !el.isapre.checked;
-    render();
-  });
+  el.isapre.addEventListener("change", function () { el.wrapPlan.hidden = !el.isapre.checked; render(); });
   el.afc.addEventListener("change", render);
   el.cotIndep.addEventListener("change", render);
 
-  /* ---------------- Segmentados ---------------- */
-  function segmentado(contenedor, onCambio) {
-    contenedor.addEventListener("click", function (e) {
+  function segmentado(id, onCambio) {
+    var c = document.getElementById(id);
+    c.addEventListener("click", function (e) {
       var b = e.target.closest("button");
       if (!b || b.getAttribute("aria-pressed") === "true") return;
-      Array.prototype.forEach.call(contenedor.querySelectorAll("button"), function (x) {
+      Array.prototype.forEach.call(c.querySelectorAll("button"), function (x) {
         x.setAttribute("aria-pressed", String(x === b));
       });
       onCambio(b.dataset.v);
     });
   }
 
-  segmentado(document.getElementById("segSueldo"), function (v) {
-    // Mantener la continuidad: al cambiar de bruto a líquido (o al revés) traspasamos el valor calculado.
-    var p = params(), apv = num(el.apv), actual = num(el.sueldo);
-    if (v === "liquido" && S.modoSueldo === "bruto") {
-      el.sueldo.value = nf.format(Math.round(Math.max(0, liquidar(actual, apv, S.regimen, p).liquido)));
-    } else if (v === "bruto" && S.modoSueldo === "liquido") {
-      el.sueldo.value = nf.format(Math.round(brutoDesdeLiquido(actual, apv, S.regimen, p)));
-    }
-    S.modoSueldo = v;
-    render();
+  segmentado("segSueldo", function (v) {
+    var p = params(), apv = num(el.apvHoy), actual = num(el.sueldo);
+    if (v === "liquido" && S.modoSueldo === "bruto")
+      el.sueldo.value = nf.format(Math.round(Math.max(0, liquidar(actual, apv, S.regHoy, p).liquido)));
+    else if (v === "bruto" && S.modoSueldo === "liquido")
+      el.sueldo.value = nf.format(Math.round(brutoDesdeLiquido(actual, apv, S.regHoy, p)));
+    S.modoSueldo = v; render();
   });
 
-  segmentado(document.getElementById("segHonMonto"), function (v) {
+  segmentado("segHonMonto", function (v) {
     var p = params(), actual = num(el.honorarios);
-    if (actual > 0 && p.retencion < 1) {
-      el.honorarios.value = nf.format(Math.round(
-        v === "liquido" ? actual * (1 - p.retencion) : actual / (1 - p.retencion)
-      ));
-    }
-    S.modoHon = v;
-    render();
+    if (actual > 0 && p.retencion < 1)
+      el.honorarios.value = nf.format(Math.round(v === "liquido" ? actual * (1 - p.retencion) : actual / (1 - p.retencion)));
+    S.modoHon = v; render();
   });
 
-  segmentado(document.getElementById("segHonPeriodo"), function (v) {
+  segmentado("segHonPeriodo", function (v) {
     var actual = num(el.honorarios);
     if (actual > 0) el.honorarios.value = nf.format(Math.round(v === "anual" ? actual * 12 : actual / 12));
-    S.periodoHon = v;
-    render();
+    S.periodoHon = v; render();
   });
 
-  segmentado(document.getElementById("segApv"), function (v) { S.regimen = v; render(); });
+  segmentado("segRegHoy", function (v) { S.regHoy = v; render(); });
+  segmentado("segRegProp", function (v) { S.regProp = v; render(); });
 
   render();
 })();
