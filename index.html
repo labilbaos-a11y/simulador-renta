@@ -469,6 +469,11 @@
             <label class="lbl" for="apv">Aporte mensual</label>
             <span class="money"><span>$</span><input type="text" id="apv" inputmode="numeric" value="0" aria-label="Aporte mensual de APV"></span>
           </div>
+          <div class="field">
+            <label class="lbl" for="seguroApv">Prima de seguro con APV</label>
+            <span class="money"><span>$</span><input type="text" id="seguroApv" inputmode="numeric" value="0" aria-label="Prima mensual del seguro de vida acogido a APV"></span>
+            <p class="note">Si el seguro de vida está <b>dentro</b> de un producto APV, su prima también rebaja impuesto y se suma al aporte. Es la diferencia con el seguro contratado por fuera.</p>
+          </div>
           <div class="row-split">
             <span class="lbl">Régimen</span>
             <div class="seg" id="segApv">
@@ -623,7 +628,7 @@
    "apv","uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
    "strip","bar","legend","tablaMes","tablaAnual","resultadoAnual","tablaTramos",
    "cardApv","bdApv","hdApv","hdModo",
-   "fechaNac","edadRetiro","notaEdad","seguroVida","cardProy","bdProy","hdProy",
+   "fechaNac","edadRetiro","notaEdad","seguroVida","seguroApv","cardProy","bdProy","hdProy",
    "wrapTasa","tasaReal"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -739,7 +744,9 @@
 
   function render() {
     var p = params();
-    var apv = num(el.apv);
+    var aporte = num(el.apv);            // ahorro puro
+    var seguroApv = num(el.seguroApv);   // prima del seguro que va DENTRO del APV: también deduce
+    var apv = aporte + seguroApv;        // todo lo que rebaja base
 
     // --- Sueldo ---
     var entrada = num(el.sueldo);
@@ -764,17 +771,25 @@
     var ahorroB = Math.max(0, aSin.impuestoTotal - aConB.impuestoTotal);
     var bonoA = Math.min(0.15 * apvAnual, 6 * UTM);
 
-    var seguro = num(el.seguroVida);
+    var seguro = num(el.seguroVida);   // el que va por fuera: no deduce
     var ed = edades();
+
+    // ¿Cuánto se ahorraría si ese seguro externo también estuviera dentro del APV?
+    // Es la comparación directa entre las dos estructuras, a igual desembolso.
+    var mDentro = liquidar(bruto, apv + seguro, "B", p);
+    var aDentro = anual(mDentro, honBrutoAnual, apv + seguro, "B", p);
+    var ahorroSiDentro = Math.max(0, aConB.impuestoTotal - aDentro.impuestoTotal);
 
     pintarStrip(m, a, honBrutoAnual, p, seguro);
     pintarBarra(m);
     pintarMes(m, p, seguro);
     pintarApv({
-      apv: apv, apvAnual: apvAnual, ahorroB: ahorroB, bonoA: bonoA,
-      impSin: aSin.impuestoTotal, impConB: aConB.impuestoTotal, p: p
+      aporte: aporte, seguroApv: seguroApv, apv: apv,
+      apvAnual: apvAnual, ahorroB: ahorroB, bonoA: bonoA,
+      impSin: aSin.impuestoTotal, impConB: aConB.impuestoTotal, p: p,
+      seguro: seguro, seguroAnual: seguro * 12, ahorroSiDentro: ahorroSiDentro
     });
-    pintarProyeccion(ed, apv, ahorroB, seguro, S.regimen === "A" ? bonoA : 0);
+    pintarProyeccion(ed, aporte, ahorroB, seguro + seguroApv, S.regimen === "A" ? bonoA : 0);
     pintarAnual(a, honBrutoAnual, p);
     pintarTramos(S.tramoAnual);
 
@@ -930,7 +945,7 @@
   function pintarApv(x) {
     var apv = x.apv, apvAnual = x.apvAnual, ahorroB = x.ahorroB, bonoA = x.bonoA, p = x.p;
 
-    if (apv <= 0) {
+    if (apv <= 0 && x.seguroAnual <= 0) {
       el.hdApv.textContent = "sin aporte";
       el.bdApv.innerHTML = '<p class="empty">Pon un monto de APV arriba para ver cuánto impuesto te ahorra y cuánto te cuesta de verdad.</p>';
       return;
@@ -961,19 +976,56 @@
            '</div>';
     }
 
-    h += '<table class="ledger">' + fila("Aporte anual al APV", $(apvAnual), { tag: $(apv) + "/mes" });
+    var segAnual = x.seguroAnual;
+    var deducible = S.regimen === "B" ? ahorroB : 0;
+    var costoApv = apvAnual - deducible;
+
+    h += '<table class="ledger">';
+    if (x.seguroApv > 0) {
+      h += fila("Aporte anual al APV", $(x.aporte * 12), { tag: $(x.aporte) + "/mes" }) +
+           fila("Prima anual del seguro con APV", $(x.seguroApv * 12), { sub: true, tag: $(x.seguroApv) + "/mes · deducible" }) +
+           fila("<b>Total que rebaja impuesto</b>", "<b>" + $(apvAnual) + "</b>", { cls: "rule" });
+    } else {
+      h += fila("Aporte anual al APV", $(apvAnual), { tag: $(apv) + "/mes" });
+    }
 
     if (S.regimen === "B") {
       h += fila("Impuesto del año sin APV", $(x.impSin), { sub: true, cls: "rule" }) +
            fila("Impuesto del año con APV", $(x.impConB), { sub: true }) +
-           fila("<b>Ahorro de impuesto</b>", "<b>" + $(ahorroB) + "</b>", { cls: "rule", color: "posv" }) +
-           fila("Costo real de tu bolsillo", $(apvAnual - ahorroB), { cls: "total" });
+           fila("<b>Ahorro de impuesto</b>", "<b>" + $(ahorroB) + "</b>", { cls: "rule", color: "posv" });
     } else {
       h += fila("Bonificación del Estado", "+" + $(bonoA), { sub: true, cls: "rule", tag: "15%, tope 6 UTM", color: "posv" }) +
            fila("Impuesto del año", $(x.impSin), { sub: true, tag: "no cambia" }) +
-           fila("Entra al fondo", $(apvAnual + bonoA), { cls: "total", color: "posv" });
+           fila("Entra al fondo", $(apvAnual + bonoA), { sub: true, color: "posv" });
+    }
+
+    if (segAnual > 0) {
+      h += fila("Costo real del APV", $(costoApv), { cls: "rule" }) +
+           fila("Seguro de vida por fuera", "+" + $(segAnual), { sub: true, tag: $(x.seguro) + "/mes · no deducible", color: "neg" }) +
+           fila("<b>Costo total incluyendo seguro</b>", "<b>" + $(costoApv + segAnual) + "</b>", { cls: "total" });
+    } else {
+      h += fila("Costo real de tu bolsillo", $(costoApv), { cls: "total" });
     }
     h += '</table>';
+
+    // Comparación directa entre las dos estructuras, con el mismo desembolso.
+    if (segAnual > 0 && S.regimen === "B") {
+      var costoFuera = costoApv + segAnual;
+      var costoDentro = costoFuera - x.ahorroSiDentro;
+      h += '<div class="duo">' +
+        '<div class="regbox"><span class="rt">Con el seguro por fuera</span>' +
+        '<span class="rv">' + $(costoFuera) + '</span>' +
+        '<span class="rd">Al año. La prima no rebaja nada: sale entera de tu líquido.</span></div>' +
+        '<div class="regbox' + (x.ahorroSiDentro > 0 ? " win" : "") + '"><span class="rt">Con el seguro dentro del APV</span>' +
+        '<span class="rv">' + $(costoDentro) + '</span>' +
+        '<span class="rd">Al año. La misma prima pasa a ser deducible.</span>' +
+        (x.ahorroSiDentro > 0 ? '<span class="badge">Ahorras ' + $(x.ahorroSiDentro) + '</span>' : "") +
+        '</div></div>';
+      if (x.ahorroSiDentro > 0) {
+        h += '<p class="note">Mismo desembolso, misma cobertura: mover ese seguro dentro de un producto con APV te deja <b>' +
+          $(x.ahorroSiDentro / 12) + '</b> más al mes, <b>' + $(x.ahorroSiDentro) + '</b> al año.</p>';
+      }
+    }
 
     h += '<div class="duo">' +
          '<div class="regbox' + (mejorB ? " win" : "") + '"><span class="rt">Régimen B — rebaja base</span>' +
@@ -1066,7 +1118,7 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apv", "seguroVida"].forEach(function (id) {
+  ["sueldo", "plan", "honorarios", "apv", "seguroVida", "seguroApv"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
