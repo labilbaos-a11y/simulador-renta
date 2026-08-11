@@ -658,7 +658,10 @@
     if (!nac) return null;
     var hoy = new Date();
     var anios = (hoy - nac) / (365.2425 * 864e5);
-    if (anios < 0 || anios > 120) return null;
+    // Un APV lo contrata un adulto: fechas futuras o menores de edad son error de tipeo.
+    if (anios < 0) return { error: "futura" };
+    if (anios < 18) return { error: "menor" };
+    if (anios > 110) return { error: "rango" };
     var retiro = Math.min(90, Math.max(40, Math.round(dec(el.edadRetiro) || 65)));
     return {
       nac: nac,
@@ -812,10 +815,16 @@
     pintarAnual(a, honBrutoAnual, p);
     pintarTramos(S.tramoAnual);
 
-    el.notaEdad.innerHTML = ed
+    var avisos = {
+      futura: "Esa fecha está en el futuro. Revisa el año.",
+      menor: "El titular tiene que ser mayor de 18 años.",
+      rango: "Esa fecha no parece correcta. Revisa el año."
+    };
+    el.notaEdad.innerHTML = (ed && !ed.error)
       ? "Nació el <b>" + ed.nac.getDate() + " de " + MESES[ed.nac.getMonth()] + " de " + ed.nac.getFullYear() +
         "</b>. Tiene " + ed.cumplida + " años cumplidos (edad actuarial " + ed.actuarial +
         "). Faltan " + ed.aniosRestantes.toFixed(1).replace(".", ",") + " años para los " + ed.retiro + "."
+      : (ed && ed.error) ? "<b>" + avisos[ed.error] + "</b>"
       : (el.fechaNac.value.trim()
           ? "No entendí esa fecha. Escríbela como <b>dd-mm-aaaa</b>, por ejemplo 15-02-1974."
           : "Opcional, para proyectar el APV hasta la jubilación. Escríbela como dd-mm-aaaa.");
@@ -918,7 +927,7 @@
   /* Proyecta el APV hasta la jubilación con una tasa real editable, y muestra
      el gasto real mensual = aporte + seguro por fuera − lo que devuelve el fisco. */
   function pintarProyeccion(ed, apv, ahorroB, seguro, bonoA) {
-    if (!ed) {
+    if (!ed || ed.error) {
       el.hdProy.textContent = "sin fecha";
       el.wrapTasa.hidden = true;
       el.bdProy.innerHTML = '<p class="empty">Pon la fecha de nacimiento arriba para proyectar cuánto acumula el APV hasta la jubilación.</p>';
