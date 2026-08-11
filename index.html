@@ -346,6 +346,10 @@
   /* La glosa es texto, no cifras: dejarla envolver para que no estire la tabla. */
   .comp tr.glosa td.n { white-space: normal; font-family: var(--sans); }
 
+  /* Segmentado a lo ancho: el régimen se elige mal si los botones dicen solo "A" y "B". */
+  .seg.ancho { width: 100%; }
+  .seg.ancho button { flex: 1; text-align: center; padding: 6px 4px; font-size: 11.5px; }
+
   /* ---------- acento de cada situación ---------- */
   .acento-hoy .card-hd  { box-shadow: inset 3px 0 0 var(--ink-3); }
   .acento-prop .card-hd { box-shadow: inset 3px 0 0 var(--teal); }
@@ -489,11 +493,11 @@
             <label class="lbl" for="apvHoy">APV mensual</label>
             <span class="money"><span>$</span><input type="text" id="apvHoy" inputmode="numeric" value="0" aria-label="APV mensual actual"></span>
           </div>
-          <div class="row-split">
-            <span class="lbl">Régimen</span>
-            <div class="seg" id="segRegHoy">
-              <button type="button" data-v="B" aria-pressed="true">B</button>
-              <button type="button" data-v="A" aria-pressed="false">A</button>
+          <div class="field">
+            <span class="lbl">Régimen tributario</span>
+            <div class="seg ancho" id="segRegHoy">
+              <button type="button" data-v="B" aria-pressed="true">B — rebaja impuesto</button>
+              <button type="button" data-v="A" aria-pressed="false">A — bono 15%</button>
             </div>
           </div>
           <div class="field">
@@ -511,11 +515,11 @@
             <label class="lbl" for="apvProp">APV mensual</label>
             <span class="money"><span>$</span><input type="text" id="apvProp" inputmode="numeric" value="0" aria-label="APV mensual propuesto"></span>
           </div>
-          <div class="row-split">
-            <span class="lbl">Régimen</span>
-            <div class="seg" id="segRegProp">
-              <button type="button" data-v="B" aria-pressed="true">B</button>
-              <button type="button" data-v="A" aria-pressed="false">A</button>
+          <div class="field">
+            <span class="lbl">Régimen tributario</span>
+            <div class="seg ancho" id="segRegProp">
+              <button type="button" data-v="B" aria-pressed="true">B — rebaja impuesto</button>
+              <button type="button" data-v="A" aria-pressed="false">A — bono 15%</button>
             </div>
           </div>
           <div class="field">
@@ -882,6 +886,20 @@
     h += filaComp("APV que rebaja base", "−" + $(A.m.apvDeducible), d(function (x) { return "−" + $(x.m.apvDeducible); }), { sub: true, color: "neg" });
     h += filaComp("<b>Renta líquida imponible</b>", "<b>" + $(A.m.rli) + "</b>", d(function (x) { return "<b>" + $(x.m.rli) + "</b>"; }), { cls: "rule" });
     h += filaComp("Impuesto único", "−" + $(A.m.impuesto), d(function (x) { return "−" + $(x.m.impuesto); }), { sub: true, color: "neg" });
+
+    /* El APV en régimen A —o el exceso sobre el tope de 50 UF— igual se descuenta del
+       líquido aunque no rebaje la base. Sin esta fila el líquido no cuadra con la tabla. */
+    var restoA = A.m.apv - A.m.apvDeducible;
+    var restoB = hayProp ? B.m.apv - B.m.apvDeducible : 0;
+    if (restoA > 0.5 || restoB > 0.5) {
+      h += filaComp("APV que no rebaja base", restoA > 0.5 ? "−" + $(restoA) : "—",
+        d(function (x) { var r = x.m.apv - x.m.apvDeducible; return r > 0.5 ? "−" + $(r) : "—"; }),
+        { sub: true, color: "neg" });
+      var glosa = "<i>régimen A o sobre el tope</i>";
+      h += filaComp("", restoA > 0.5 ? glosa : "",
+        hayProp ? (restoB > 0.5 ? glosa : "") : null, { sub: true, cls: "glosa" });
+    }
+
     h += filaComp("Sueldo líquido", $(A.m.liquido), d(function (x) { return $(x.m.liquido); }), { cls: "total", color: "posv" });
     el.tablaLiq.innerHTML = h + "</tbody>";
   }
