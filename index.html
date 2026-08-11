@@ -932,16 +932,27 @@
       return;
     }
     var dif = A.costoReal - B.costoReal;
-    var difApv = B.apvTotal - A.apvTotal;
+    // Solo el aporte es ahorro. La prima del seguro compra cobertura, no se acumula.
+    var difAporte = B.aporte - A.aporte;
+    var primaMovida = Math.min(A.seguroFuera, B.seguroDentro);
+
+    var partes = [];
+    if (primaMovida > 0.5) {
+      partes.push("La prima de <b>" + $(primaMovida) + "</b> pasa de gasto que no deduce a prima de APV que sí deduce.");
+    }
+    if (difAporte > 0.5) partes.push("El aporte al ahorro sube <b>" + $(difAporte) + "</b> al mes.");
+    else if (difAporte < -0.5) partes.push("El aporte al ahorro baja <b>" + $(-difAporte) + "</b> al mes.");
+    else if (primaMovida > 0.5) partes.push("El aporte al ahorro y la cobertura no cambian.");
+
     if (dif > 0) {
       el.veredicto.innerHTML = '<div class="callout good"><span class="hd">La propuesta le cuesta ' + $(dif) + ' menos al mes</span>' +
-        (difApv > 0 ? 'Y además ahorra <b>' + $(difApv) + '</b> más. ' : '') +
-        'Son <b>' + $(dif * 12) + '</b> al año. La diferencia viene de que la prima del seguro pasa a rebajar impuesto.</div>';
+        partes.join(" ") + ' Son <b>' + $(dif * 12) + '</b> al año.</div>';
     } else if (dif < 0) {
       el.veredicto.innerHTML = '<div class="callout warn"><span class="hd">La propuesta le cuesta ' + $(-dif) + ' más al mes</span>' +
-        (difApv > 0 ? 'A cambio ahorra <b>' + $(difApv) + '</b> más cada mes.' : 'Revisa los montos: con el mismo desembolso debería costar menos.') + '</div>';
+        (partes.length ? partes.join(" ") + " " : "") + 'Son <b>' + $(-dif * 12) + '</b> al año.</div>';
     } else {
-      el.veredicto.innerHTML = '<div class="callout good"><span class="hd">Las dos cuestan lo mismo</span>Ajusta los montos para ver la diferencia.</div>';
+      el.veredicto.innerHTML = '<div class="callout good"><span class="hd">Las dos cuestan lo mismo</span>' +
+        (partes.length ? partes.join(" ") : "Ajusta los montos para ver la diferencia.") + '</div>';
     }
   }
 
