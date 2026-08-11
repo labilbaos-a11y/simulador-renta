@@ -415,7 +415,7 @@
           <div class="row2">
             <div class="field">
               <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
-              <input type="date" id="fechaNac" value="">
+              <input type="text" id="fechaNac" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="bday" value="">
             </div>
             <div class="field">
               <label class="lbl" for="edadRetiro">Se pensiona a los</label>
@@ -634,15 +634,34 @@
 
   /* Edad actuarial: el cumpleaños más cercano, próximo o pasado — el mismo criterio
      que usan las compañías de seguros. Devuelve null si no hay fecha válida. */
+  var MESES = ["enero","febrero","marzo","abril","mayo","junio",
+               "julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+  /* Acepta lo que la gente realmente escribe: 15-02-1974, 15/2/74, 02-1974 o solo 1974.
+     Devuelve null si no se entiende, para no inventar una edad. */
+  function parseFecha(txt) {
+    var n = String(txt || "").split(/[^0-9]+/).filter(Boolean).map(Number);
+    if (!n.length) return null;
+    var d, mes, anio;
+    if (n.length === 1) { anio = n[0]; mes = 6; d = 30; }
+    else if (n.length === 2) { mes = n[0]; anio = n[1]; d = 15; }
+    else if (n[0] > 31) { anio = n[0]; mes = n[1]; d = n[2]; }   // aaaa-mm-dd
+    else { d = n[0]; mes = n[1]; anio = n[2]; }                  // dd-mm-aaaa
+    if (anio < 100) anio += anio > 30 ? 1900 : 2000;
+    if (anio < 1900 || anio > 2100 || mes < 1 || mes > 12 || d < 1 || d > 31) return null;
+    var f = new Date(anio, mes - 1, d);
+    return isNaN(f.getTime()) ? null : f;
+  }
+
   function edades() {
-    if (!el.fechaNac.value) return null;
-    var nac = new Date(el.fechaNac.value + "T00:00:00");
-    if (isNaN(nac)) return null;
+    var nac = parseFecha(el.fechaNac.value);
+    if (!nac) return null;
     var hoy = new Date();
     var anios = (hoy - nac) / (365.2425 * 864e5);
     if (anios < 0 || anios > 120) return null;
     var retiro = Math.min(90, Math.max(40, Math.round(dec(el.edadRetiro) || 65)));
     return {
+      nac: nac,
       cumplida: Math.floor(anios),
       actuarial: Math.round(anios),
       retiro: retiro,
@@ -793,10 +812,13 @@
     pintarAnual(a, honBrutoAnual, p);
     pintarTramos(S.tramoAnual);
 
-    el.notaEdad.textContent = ed
-      ? "Tiene " + ed.cumplida + " años cumplidos (edad actuarial " + ed.actuarial +
+    el.notaEdad.innerHTML = ed
+      ? "Nació el <b>" + ed.nac.getDate() + " de " + MESES[ed.nac.getMonth()] + " de " + ed.nac.getFullYear() +
+        "</b>. Tiene " + ed.cumplida + " años cumplidos (edad actuarial " + ed.actuarial +
         "). Faltan " + ed.aniosRestantes.toFixed(1).replace(".", ",") + " años para los " + ed.retiro + "."
-      : "Opcional. Sirve para proyectar cuánto acumula el APV hasta la jubilación.";
+      : (el.fechaNac.value.trim()
+          ? "No entendí esa fecha. Escríbela como <b>dd-mm-aaaa</b>, por ejemplo 15-02-1974."
+          : "Opcional, para proyectar el APV hasta la jubilación. Escríbela como dd-mm-aaaa.");
   }
 
   function pintarStrip(m, a, hon, p, seguro) {
