@@ -893,8 +893,11 @@
     var saludLegal = imponible * 0.07;
     var saludPagada = p.isapre ? Math.max(saludLegal, p.plan) : saludLegal;
     var afc = p.afc ? Math.min(bruto, p.topeAfc) * 0.006 : 0;
-    var apvDeducible = regimen === "B" ? Math.min(apv, p.topeApv) : 0;
-    var rli = Math.max(0, bruto - afp - saludLegal - afc - apvDeducible);
+    /* El APV solo puede rebajar lo que hay de base. Si el sueldo no alcanza —o no hay
+       sueldo—, el resto queda pendiente y se descuenta en el Global Complementario. */
+    var disponible = Math.max(0, bruto - afp - saludLegal - afc);
+    var apvDeducible = regimen === "B" ? Math.min(apv, p.topeApv, disponible) : 0;
+    var rli = disponible - apvDeducible;
     var impuesto = impuestoMensual(rli);
     return {
       bruto: bruto, imponible: imponible, afp: afp,
@@ -962,7 +965,9 @@
       desembolso: desembolso,
       costoReal: desembolso - rebaja,
       disponible: m.liquido - seguroFuera,
-      impSin: aSin.impuestoTotal / 12
+      // Ambos mensualizados desde el total anual, para que resten parejo con o sin boletas.
+      impSin: aSin.impuestoTotal / 12,
+      impCon: a.impuestoTotal / 12
     };
   }
 
@@ -986,7 +991,7 @@
     var B = escenario(bruto, aporteProp, segDentro, 0, S.regProp, honAnual, p);
     var hayProp = (aporteProp + segDentro) > 0;
 
-    pintarStrip(A, B, hayProp, honAnual);
+    pintarStrip(A, B, hayProp, honAnual, p);
     pintarLiquidacion(A, B, hayProp, p);
     pintarCosto(A, B, hayProp);
     pintarBonos(A, B, hayProp, p);
@@ -1024,8 +1029,21 @@
            '<span class="v">' + v + '</span><span class="s">' + s + '</span></div>';
   }
 
-  function pintarStrip(A, B, hayProp, hon) {
+  function pintarStrip(A, B, hayProp, hon, p) {
     var tramo = TABLA[hon > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo];
+
+    /* Solo boletas, sin sueldo: no hay liquidación ni impuesto mensual que mostrar.
+       Lo que la persona recibe es la boleta menos la retención. */
+    if (A.m.bruto <= 0 && hon > 0) {
+      var brutoMes = hon / 12, retMes = brutoMes * p.retencion;
+      el.strip.innerHTML =
+        stat("Recibes al mes", $(brutoMes - retMes), "boleta menos retención", "") +
+        stat("Retención", $(retMes), pct(p.retencion, 2) + " · es un anticipo", "") +
+        stat("Costo real del ahorro", $(hayProp ? B.costoReal : A.costoReal), "aporte menos rebaja", "") +
+        stat("Tramo marginal", tramo.etq, "sobre el próximo peso", "");
+      return;
+    }
+
     if (!hayProp) {
       el.strip.innerHTML =
         stat("Te queda disponible", $(A.disponible), A.seguroFuera > 0 ? "después del seguro" : "cada mes", "") +
@@ -1057,6 +1075,11 @@
   }
 
   function pintarLiquidacion(A, B, hayProp, p) {
+    // Sin sueldo no hay liquidación: la tarjeta entera sobra y solo mostraría ceros.
+    var cardLiq = el.tablaLiq.closest("section");
+    cardLiq.hidden = A.m.bruto <= 0;
+    if (cardLiq.hidden) return;
+
     var d = function (f) { return hayProp ? f(B) : null; };
     var h = encabezado(hayProp) + "<tbody>";
     h += filaComp("Sueldo bruto", $(A.m.bruto), d(function (x) { return $(x.m.bruto); }));
@@ -1092,7 +1115,7 @@
     h += filaComp("", "<i>por fuera · no deduce</i>", hayProp ? "<i>dentro del APV · deduce</i>" : null, { sub: true, cls: "glosa" });
     h += filaComp("<b>Desembolso total</b>", "<b>" + $(A.desembolso) + "</b>", d(function (x) { return "<b>" + $(x.desembolso) + "</b>"; }), { cls: "rule" });
     h += filaComp("Impuesto sin APV", $(A.impSin), d(function (x) { return $(x.impSin); }), { sub: true, cls: "rule" });
-    h += filaComp("Impuesto con APV", $(A.m.impuesto), d(function (x) { return $(x.m.impuesto); }), { sub: true });
+    h += filaComp("Impuesto con APV", $(A.impCon), d(function (x) { return $(x.impCon); }), { sub: true });
     h += filaComp("Rebaja de impuesto", "−" + $(A.rebaja), d(function (x) { return "−" + $(x.rebaja); }), { sub: true, color: "posv" });
     if (A.bono > 0 || (hayProp && B.bono > 0)) {
       h += filaComp("Bono del Estado al fondo", A.bono > 0 ? "+" + $(A.bono) : "—", d(function (x) { return x.bono > 0 ? "+" + $(x.bono) : "—"; }), { sub: true, color: "posv" });
