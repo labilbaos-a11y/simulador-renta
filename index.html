@@ -533,6 +533,11 @@
             </div>
           </div>
           <div class="field">
+            <label class="lbl" for="espHoy">Aporte esporádico al año</label>
+            <span class="money"><span>$</span><input type="text" id="espHoy" inputmode="numeric" value="0" aria-label="Aporte esporádico anual, situación actual"></span>
+            <p class="note">Depósito directo, fuera de la planilla. Rebaja impuesto igual, pero llega como <b>devolución en abril</b>, no como mayor líquido mes a mes.</p>
+          </div>
+          <div class="field">
             <label class="lbl" for="seguroFuera">Seguro de vida por fuera</label>
             <span class="money"><span>$</span><input type="text" id="seguroFuera" inputmode="numeric" value="0" aria-label="Prima mensual del seguro contratado por fuera"></span>
             <p class="note">Contratado aparte del APV: <b>no rebaja impuesto</b>, sale entero del líquido.</p>
@@ -571,6 +576,11 @@
               <button type="button" data-v="B" aria-pressed="true">B — rebaja impuesto</button>
               <button type="button" data-v="A" aria-pressed="false">A — bono 15%</button>
             </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="espProp">Aporte esporádico al año</label>
+            <span class="money"><span>$</span><input type="text" id="espProp" inputmode="numeric" value="0" aria-label="Aporte esporádico anual, situación propuesta"></span>
+            <p class="note">Depósito directo, fuera de la planilla. Se recupera en la Operación Renta de abril.</p>
           </div>
           <div class="field">
             <label class="lbl" for="seguroApv">Seguro de vida dentro del APV</label>
@@ -775,7 +785,7 @@
 
   var el = {};
   ["fechaNac","notaEdad","sueldo","afp","comision","isapre","wrapPlan","plan","afc",
-   "honorarios","cotIndep","apvHoy","seguroFuera","apvProp","seguroApv",
+   "honorarios","cotIndep","apvHoy","seguroFuera","apvProp","seguroApv","espHoy","espProp",
    "uf","topeImp","topeAfc","retencion","tasaIndep","topeApv",
    "strip","hdModo","notaSueldo","tablaLiq","tablaCosto","veredicto","hdReg","bdReg",
    "cardAnual","tablaAnual","resultadoAnual","tablaTramos",
@@ -846,13 +856,15 @@
      sobre el saldo total daría otro número: con los años la parte que más rinde pesa
      más, y el garantizado —que va en UF a tasa fija— no puede mezclarse con los demás
      como si fuera una sola cuenta. */
-  function acumular(aporteMes, mezcla, costoAnual, anios) {
+  function acumular(aporteMes, mezcla, costoAnual, anios, esporadicoAnual) {
     var meses = Math.round(anios * 12);
     var saldos = mezcla.map(function () { return 0; });
     for (var i = 0; i < meses; i++) {
+      // El depósito esporádico entra una vez al año, al cierre.
+      var extra = (i % 12 === 11) ? (esporadicoAnual || 0) : 0;
       for (var k = 0; k < mezcla.length; k++) {
         var neta = Math.max(-0.99, tasaEn(mezcla[k], i / 12) - (costoAnual || 0) / 100);
-        saldos[k] = (saldos[k] + aporteMes * mezcla[k].peso) * Math.pow(1 + neta, 1 / 12);
+        saldos[k] = (saldos[k] + (aporteMes + extra) * mezcla[k].peso) * Math.pow(1 + neta, 1 / 12);
       }
     }
     var total = 0;
@@ -928,7 +940,7 @@
     return (lo + hi) / 2;
   }
 
-  function anual(mes, honBrutoAnual, apv, regimen, p) {
+  function anual(mes, honBrutoAnual, apv, regimen, p, esporadico) {
     var baseSueldo = mes.rli * 12;
     var gastos = Math.min(honBrutoAnual * 0.30, 15 * UTA);
     var baseHon = Math.max(0, honBrutoAnual - gastos);
@@ -941,8 +953,14 @@
       cot = baseCot * p.tasaIndep;
     }
 
-    var apvB = regimen === "B" ? Math.min(apv, p.topeApv) : 0;
-    var apvPendiente = Math.max(0, apvB * 12 - mes.apvDeducible * 12);
+    /* Tope del régimen B: 600 UF al año (50 UF × 12), compartido entre lo que va por
+       planilla y los depósitos directos. Lo que la planilla no alcanzó a descontar
+       —más el aporte esporádico— se deduce acá, en el Global Complementario. */
+    var topeAnual = p.topeApv * 12;
+    var aportadoAnual = apv * 12 + (esporadico || 0);
+    var deducibleAnual = regimen === "B" ? Math.min(aportadoAnual, topeAnual) : 0;
+    var yaDeducido = mes.apvDeducible * 12;
+    var apvPendiente = Math.max(0, deducibleAnual - yaDeducido);
     var baseGC = Math.max(0, baseSueldo + baseHon - cot - apvPendiente);
     var gc = impuestoMensual(baseGC / 12) * 12;
     var iusc = mes.impuesto * 12;
@@ -955,20 +973,21 @@
   }
 
   /* Arma un escenario completo: liquidación, impuesto, seguro y costo real. */
-  function escenario(bruto, aporte, seguroDentro, seguroFuera, regimen, honAnual, p) {
+  function escenario(bruto, aporte, seguroDentro, seguroFuera, esporadico, regimen, honAnual, p) {
     var apvTotal = aporte + seguroDentro;
     var m = liquidar(bruto, apvTotal, regimen, p);
-    var a = anual(m, honAnual, apvTotal, regimen, p);
+    var a = anual(m, honAnual, apvTotal, regimen, p, esporadico);
 
     var sin = liquidar(bruto, 0, regimen, p);
-    var aSin = anual(sin, honAnual, 0, regimen, p);
+    var aSin = anual(sin, honAnual, 0, regimen, p, 0);
 
     var rebaja = Math.max(0, (aSin.impuestoTotal - a.impuestoTotal) / 12);
-    var bono = regimen === "A" ? Math.min(0.15 * apvTotal * 12, 6 * UTM) / 12 : 0;
-    var desembolso = apvTotal + seguroFuera;
+    var bono = regimen === "A" ? Math.min(0.15 * (apvTotal * 12 + esporadico), 6 * UTM) / 12 : 0;
+    // El esporádico se prorratea solo para que el cuadro mensual sea comparable.
+    var desembolso = apvTotal + seguroFuera + esporadico / 12;
 
     return {
-      m: m, a: a, apvTotal: apvTotal, aporte: aporte,
+      m: m, a: a, apvTotal: apvTotal, aporte: aporte, esporadico: esporadico,
       seguroDentro: seguroDentro, seguroFuera: seguroFuera,
       regimen: regimen, rebaja: rebaja, bono: bono,
       desembolso: desembolso,
@@ -996,8 +1015,8 @@
     var hBruto = S.modoHon === "bruto" ? hEnt : (p.retencion < 1 ? hEnt / (1 - p.retencion) : hEnt);
     var honAnual = S.periodoHon === "anual" ? hBruto : hBruto * 12;
 
-    var A = escenario(bruto, aporteHoy, 0, segFuera, S.regHoy, honAnual, p);
-    var B = escenario(bruto, aporteProp, segDentro, 0, S.regProp, honAnual, p);
+    var A = escenario(bruto, aporteHoy, 0, segFuera, num(el.espHoy), S.regHoy, honAnual, p);
+    var B = escenario(bruto, aporteProp, segDentro, 0, num(el.espProp), S.regProp, honAnual, p);
     var hayProp = (aporteProp + segDentro) > 0;
 
     pintarStrip(A, B, hayProp, honAnual, p);
@@ -1120,6 +1139,13 @@
     var d = function (f) { return hayProp ? f(B) : null; };
     var h = encabezado(hayProp) + "<tbody>";
     h += filaComp("Aporte al APV", $(A.aporte), d(function (x) { return $(x.aporte); }));
+    if (A.esporadico > 0 || (hayProp && B.esporadico > 0)) {
+      h += filaComp("Esporádico anual, prorrateado", $(A.esporadico / 12),
+        d(function (x) { return $(x.esporadico / 12); }), { sub: true });
+      h += filaComp("", A.esporadico > 0 ? "<i>" + $(A.esporadico) + " al año</i>" : "",
+        hayProp ? (B.esporadico > 0 ? "<i>" + $(B.esporadico) + " al año</i>" : "") : null,
+        { sub: true, cls: "glosa" });
+    }
     h += filaComp("Seguro de vida", $(A.seguroFuera), d(function (x) { return $(x.seguroDentro); }), { sub: true });
     h += filaComp("", "<i>por fuera · no deduce</i>", hayProp ? "<i>dentro del APV · deduce</i>" : null, { sub: true, cls: "glosa" });
     h += filaComp("<b>Desembolso total</b>", "<b>" + $(A.desembolso) + "</b>", d(function (x) { return "<b>" + $(x.desembolso) + "</b>"; }), { cls: "rule" });
@@ -1211,10 +1237,12 @@
     var mB = leerMezcla("fondoProp", "pctProp", "fondoProp2", "tasaProp");
     var costo = dec(el.costoProd);
     // Solo el aporte se acumula: la prima del seguro compra cobertura, no capital.
-    var accA = acumular(A.aporte, mA.mezcla, 0, n);
-    var accB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n) : { total: 0, partes: [] };
+    var accA = acumular(A.aporte, mA.mezcla, 0, n, A.esporadico);
+    var accB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n, B.esporadico) : { total: 0, partes: [] };
     var saldoA = accA.total, saldoB = accB.total;
-    var puestoA = A.aporte * Math.round(n * 12), puestoB = B.aporte * Math.round(n * 12);
+    var mesesN = Math.round(n * 12), anios = Math.floor(mesesN / 12);
+    var puestoA = A.aporte * mesesN + A.esporadico * anios;
+    var puestoB = B.aporte * mesesN + B.esporadico * anios;
     var d = function (v) { return hayProp ? v : null; };
 
     var h = encabezado(hayProp) + "<tbody>";
@@ -1262,7 +1290,7 @@
     }
     var anualAporte = X.apvTotal * 12;
     // Régimen B: lo que baja el impuesto. Régimen A: 15% al fondo, tope 6 UTM.
-    var conB = escenario(X.m.bruto, X.aporte, X.seguroDentro, X.seguroFuera, "B", 0, p);
+    var conB = escenario(X.m.bruto, X.aporte, X.seguroDentro, X.seguroFuera, X.esporadico, "B", 0, p);
     var ahorroB = conB.rebaja * 12;
     var bonoA = Math.min(0.15 * anualAporte, 6 * UTM);
     var ganaB = ahorroB >= bonoA;
@@ -1288,8 +1316,8 @@
                           hayProp ? "fondoProp2" : "fondoHoy2", hayProp ? "tasaProp" : "tasaHoy");
       var costo = hayProp ? dec(el.costoProd) : 0;
       var bonoMes = bonoA / 12;
-      var fondoB = acumular(X.aporte, mz.mezcla, costo, n).total;
-      var fondoA = acumular(X.aporte + bonoMes, mz.mezcla, costo, n).total;
+      var fondoB = acumular(X.aporte, mz.mezcla, costo, n, X.esporadico).total;
+      var fondoA = acumular(X.aporte + bonoMes, mz.mezcla, costo, n, X.esporadico).total;
       var efectivoB = ahorroB * n;   // el ahorro de impuesto recibido, sin reinvertir
 
       h += '<div class="scroll" style="margin-top:4px"><table class="comp"><thead><tr><th></th>' +
@@ -1376,7 +1404,8 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv", "bonos"].forEach(function (id) {
+  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv", "bonos",
+   "espHoy", "espProp"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
