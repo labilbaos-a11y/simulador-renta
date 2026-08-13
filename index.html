@@ -1205,8 +1205,11 @@
 
     var h = encabezado(hayProp) + "<tbody>";
     h += filaComp("Bonos del año", $(bono), hayProp ? $(bono) : null);
+    h += filaComp("Prorrateado al mes", $(bono / 12), hayProp ? $(bono / 12) : null, { sub: true });
+    h += filaComp("", "<i>se reparte en los 12 meses</i>", hayProp ? "<i>se reparte en los 12 meses</i>" : null,
+      { sub: true, cls: "glosa" });
     h += filaComp("Impuesto que pagan", "−" + $(a.impBono), d(function (x) { return "−" + $(x.impBono); }), { sub: true, cls: "rule", color: "neg" });
-    h += filaComp("Tramo que los grava", a.tramo.etq, d(function (x) { return x.tramo.etq; }), { sub: true });
+    h += filaComp("Tasa efectiva del bono", pct(a.impBono / bono, 1), d(function (x) { return pct(x.impBono / bono, 1); }), { sub: true });
     h += filaComp("<b>Te queda del bono</b>", "<b>" + $(a.neto) + "</b>", d(function (x) { return "<b>" + $(x.neto) + "</b>"; }), { cls: "total", color: "posv" });
     el.tablaBonos.innerHTML = h + "</tbody>";
 
