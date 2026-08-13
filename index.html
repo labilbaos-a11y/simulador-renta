@@ -842,13 +842,22 @@
     for (var k = 0; k < mezcla.length; k++) r += tasaEn(mezcla[k], t) * mezcla[k].peso;
     return r;
   }
+  /* Cada fondo se acumula por separado y recién al final se suman. Promediar las tasas
+     sobre el saldo total daría otro número: con los años la parte que más rinde pesa
+     más, y el garantizado —que va en UF a tasa fija— no puede mezclarse con los demás
+     como si fuera una sola cuenta. */
   function acumular(aporteMes, mezcla, costoAnual, anios) {
-    var meses = Math.round(anios * 12), v = 0;
+    var meses = Math.round(anios * 12);
+    var saldos = mezcla.map(function () { return 0; });
     for (var i = 0; i < meses; i++) {
-      var neta = Math.max(-0.99, tasaMezcla(mezcla, i / 12) - (costoAnual || 0) / 100);
-      v = (v + aporteMes) * Math.pow(1 + neta, 1 / 12);
+      for (var k = 0; k < mezcla.length; k++) {
+        var neta = Math.max(-0.99, tasaEn(mezcla[k], i / 12) - (costoAnual || 0) / 100);
+        saldos[k] = (saldos[k] + aporteMes * mezcla[k].peso) * Math.pow(1 + neta, 1 / 12);
+      }
     }
-    return v;
+    var total = 0;
+    for (var j = 0; j < saldos.length; j++) total += saldos[j];
+    return { total: total, partes: saldos };
   }
   /* Lee los dos selectores de una situación y devuelve la mezcla normalizada. */
   function leerMezcla(idA, idPct, idB, idTasa) {
@@ -1202,25 +1211,35 @@
     var mB = leerMezcla("fondoProp", "pctProp", "fondoProp2", "tasaProp");
     var costo = dec(el.costoProd);
     // Solo el aporte se acumula: la prima del seguro compra cobertura, no capital.
-    var saldoA = acumular(A.aporte, mA.mezcla, 0, n);
-    var saldoB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n) : 0;
+    var accA = acumular(A.aporte, mA.mezcla, 0, n);
+    var accB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n) : { total: 0, partes: [] };
+    var saldoA = accA.total, saldoB = accB.total;
     var puestoA = A.aporte * Math.round(n * 12), puestoB = B.aporte * Math.round(n * 12);
     var d = function (v) { return hayProp ? v : null; };
 
-    // Tasa efectiva del período: la que, compuesta, produce el mismo saldo.
-    function efectiva(m, c) {
-      var t0 = tasaMezcla(m, 0) - c / 100, t1 = tasaMezcla(m, n) - c / 100;
-      return Math.abs(t0 - t1) < 1e-9 ? pct(t0, 2) : pct(t0, 2) + " → " + pct(t1, 2);
-    }
-
     var h = encabezado(hayProp) + "<tbody>";
+    // Tasa de cada fondo por separado: "3,46% y 1,5% → 1,0%". No se promedian.
+    function tasas(m, c) {
+      return m.map(function (f) {
+        return f.id === "gar" ? "1,5% → 1,0%" : pct((f.tasa - (c || 0)) / 100, 2);
+      }).join(" y ");
+    }
     h += filaComp("Fondo", etiquetaMezcla(mA), d(etiquetaMezcla(mB)), { cls: "txt" });
-    h += filaComp("Rentabilidad real usada", efectiva(mA.mezcla, 0), d(efectiva(mB.mezcla, costo)), { sub: true, cls: "txt" });
+    h += filaComp("Rentabilidad real usada", tasas(mA.mezcla, 0), d(tasas(mB.mezcla, costo)), { sub: true, cls: "txt" });
     h += filaComp("Aporte mensual", $(A.aporte), d($(B.aporte)), { sub: true, cls: "rule" });
     h += filaComp("Años hasta los " + ed.retiro, n.toFixed(1).replace(".", ",") + " años",
       d(n.toFixed(1).replace(".", ",") + " años"), { sub: true });
     h += filaComp("Total que habrá aportado", $(puestoA), d($(puestoB)), { sub: true });
+    /* Si alguna situación mezcla fondos, se muestra cuánto acumula cada parte: el
+       garantizado va en UF a tasa fija y no se puede leer junto con el resto. */
     h += filaComp("<b>Saldo al retiro</b>", "<b>" + $(saldoA) + "</b>", d("<b>" + $(saldoB) + "</b>"), { cls: "total", color: "posv" });
+
+    // Desglose por fondo, para el caso mezclado: cada parte se acumuló por su cuenta.
+    var desglose = function (acc, m) {
+      return m.length > 1 ? acc.partes.map(function (v) { return $(v); }).join(" + ") : "";
+    };
+    var dA = desglose(accA, mA.mezcla), dB = hayProp ? desglose(accB, mB.mezcla) : "";
+    if (dA || dB) h += filaComp("Cómo se reparte", dA || "—", hayProp ? (dB || "—") : null, { sub: true, cls: "txt" });
     el.tablaProy.innerHTML = h + "</tbody>";
 
     var garantizado = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { return m.id === "gar"; });
@@ -1269,8 +1288,8 @@
                           hayProp ? "fondoProp2" : "fondoHoy2", hayProp ? "tasaProp" : "tasaHoy");
       var costo = hayProp ? dec(el.costoProd) : 0;
       var bonoMes = bonoA / 12;
-      var fondoB = acumular(X.aporte, mz.mezcla, costo, n);
-      var fondoA = acumular(X.aporte + bonoMes, mz.mezcla, costo, n);
+      var fondoB = acumular(X.aporte, mz.mezcla, costo, n).total;
+      var fondoA = acumular(X.aporte + bonoMes, mz.mezcla, costo, n).total;
       var efectivoB = ahorroB * n;   // el ahorro de impuesto recibido, sin reinvertir
 
       h += '<div class="scroll" style="margin-top:4px"><table class="comp"><thead><tr><th></th>' +
