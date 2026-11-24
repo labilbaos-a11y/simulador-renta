@@ -997,7 +997,8 @@
         grp = f.grp || null;
         h += '<div class="dist-grp">' + grp + '<small>' + CONDICION[grp] + '</small></div>';
       }
-      var tasa = f.tramo ? "" : fmt(f.ref ? tasaNeta(buscarFondo(f.ref)) : f.tasa);
+      // El garantizado muestra su tasa vigente; el cambio de tasa va en la nota de abajo.
+      var tasa = f.tramo ? fmt(Math.round(f.tramo.alta * 1000) / 10) : fmt(f.ref ? tasaNeta(buscarFondo(f.ref)) : f.tasa);
       var nota = f.tramo ? etiquetaTramo(f.tramo) + " real" : (f.nota || "");
       h += '<div class="dist-row" role="row" id="apvFila' + i + '">' +
         '<span class="nom">' + f.nom + (nota ? "<small>" + nota + "</small>" : "") + '</span>' +
