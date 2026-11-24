@@ -191,6 +191,11 @@
   input:focus, select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent); }
   select { font-family: var(--sans); font-size: 13.5px; cursor: pointer; }
   input[type="number"] { font-size: 13.5px; padding: 7px 9px; }
+  #coberturasSeg {
+    width: 100%; resize: vertical; font-size: 13px; line-height: 1.45; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px;
+  }
+  #coberturasSeg:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent); }
 
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .row-split { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
@@ -412,6 +417,59 @@
   .resumen-acc { display: flex; gap: 10px; align-items: center; }
   .resumen-acc .siguiente { width: auto; padding: 9px 16px; }
   .resumen-acc .ok { font-size: 12px; color: var(--teal); }
+  .resumen-acc .siguiente.sec { background: transparent; color: var(--teal); }
+
+  /* ---------- presentación para PDF: solo existe al imprimir ----------
+     Páginas horizontales, una idea por página, siempre en tema claro. */
+  #informe { display: none; }
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    body > *:not(#informe) { display: none !important; }
+    html, body { background: #fff !important; }
+    #informe {
+      display: block;
+      --ink: #0F1A18; --ink-2: #3E4F4A; --ink-3: #6E827C; --teal: #0B8A72; --teal-soft: #E2F0EC;
+      --line: #DCE3DF; --line-soft: #E8EDEA; --surface: #fff;
+      color: var(--ink); font-family: var(--sans); font-size: 12pt; line-height: 1.45;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    #informe .p-pag {
+      position: relative; box-sizing: border-box; width: 297mm; height: 209mm; padding: 18mm 22mm 20mm;
+      break-after: page; overflow: hidden; background: #fff;
+    }
+    #informe .p-pag:last-child { break-after: auto; }
+    #informe .p-portada { background: linear-gradient(180deg, var(--teal-soft) 0 62%, #fff 62%); }
+    #informe .p-eyebrow { font-size: 9.5pt; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); font-weight: 650; }
+    #informe h1 { font-family: var(--serif); font-weight: 400; font-size: 40pt; line-height: 1.08; margin: 10mm 0 5mm; }
+    #informe h2 { font-family: var(--serif); font-weight: 400; font-size: 26pt; line-height: 1.15; margin: 3mm 0 9mm; }
+    #informe .p-meta { font-size: 12pt; color: var(--ink-2); }
+    #informe .p-cliente { font-size: 15pt; color: var(--ink); margin-top: 8mm; font-weight: 600; }
+    #informe .p-cliente + h1 { margin-top: 3mm; }
+    #informe .p-portada .p-tiles { margin-top: 22mm; }
+    #informe .p-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7mm; margin-bottom: 8mm; }
+    #informe .p-tile { border: 1px solid var(--line); border-radius: 4mm; padding: 6mm 7mm; background: #fff; display: flex; flex-direction: column; gap: 1.5mm; }
+    #informe .p-tile .k { font-size: 10pt; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+    #informe .p-tile .v { font-family: var(--mono); font-size: 24pt; font-weight: 600; color: var(--ink); }
+    #informe .p-tile:first-child .v { color: var(--teal); }
+    #informe .p-tile .d { font-size: 10pt; color: var(--ink-2); }
+    #informe .p-txt { font-size: 12pt; color: var(--ink-2); max-width: 210mm; }
+    #informe .p-t { width: 100%; border-collapse: collapse; font-size: 12pt; margin-bottom: 6mm; }
+    #informe .p-t td { padding: 3.2mm 0; border-top: 1px solid var(--line-soft); vertical-align: top; }
+    #informe .p-t td + td { padding-left: 8mm; }
+    #informe .p-t .n { text-align: right; white-space: nowrap; font-family: var(--mono); }
+    #informe .p-t .b { font-size: 10.5pt; color: var(--ink-2); }
+    #informe .p-t tr.hd td { font-size: 9pt; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border-top: 0; }
+    #informe .p-t tr.tot td { border-top: 2px solid var(--ink); }
+    #informe .p-cober { white-space: normal; font-size: 12pt; color: var(--ink-2); border-left: 3px solid var(--teal); padding: 2mm 0 2mm 6mm; }
+    #informe .p-lista { font-size: 13pt; color: var(--ink-2); padding-left: 6mm; margin: 0; }
+    #informe .p-lista li { margin-bottom: 4mm; }
+    #informe .graf svg { max-height: 82mm; }
+    #informe .graf .eje { font-size: 15px; }
+    #informe .graf .lbl-prop { font-size: 16px; }
+    #informe .nw { white-space: nowrap; }
+    #informe .leyenda { font-size: 10pt; margin-bottom: 2mm; }
+    #informe .p-pie { position: absolute; left: 22mm; right: 22mm; bottom: 9mm; font-size: 8.5pt; color: var(--ink-3); border-top: 1px solid var(--line-soft); padding-top: 2.5mm; }
+  }
   .graf { position: relative; }
   .graf svg { width: 100%; height: auto; display: block; overflow: visible; }
   .graf .eje { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-3); }
@@ -534,6 +592,10 @@
       <section class="card">
         <div class="card-hd"><h2>Titular</h2></div>
         <div class="card-bd">
+          <div class="field">
+            <label class="lbl" for="nombreCli">Nombre del cliente <span style="text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></label>
+            <input type="text" id="nombreCli" autocomplete="off" placeholder="Solo para el PDF" aria-label="Nombre del cliente, opcional">
+          </div>
           <div class="row2">
             <div class="field">
               <label class="lbl" for="fechaNac">Fecha de nacimiento</label>
@@ -723,6 +785,15 @@
             <label class="lbl" for="seguroApv">Seguro de vida (UF al mes)</label>
             <input type="number" id="seguroApv" step="0.01" min="0" value="1.29" aria-label="Prima mensual del seguro de vida en UF">
             <p class="note">Prima fija del APV MetLife; el capital asegurado depende de la edad. Va dentro del APV: <b>sí rebaja impuesto</b>, pero no se acumula en el fondo.</p>
+          </div>
+          <div class="field">
+            <label class="lbl" for="capitalSeg">Capital asegurado (UF, de la cotización)</label>
+            <input type="number" id="capitalSeg" step="1" min="0" placeholder="Ej.: 1500" aria-label="Capital asegurado en UF según la cotización">
+          </div>
+          <div class="field">
+            <label class="lbl" for="coberturasSeg">Coberturas y detalles del seguro</label>
+            <textarea id="coberturasSeg" rows="3" placeholder="Copia aquí lo de la cotización: fallecimiento, invalidez, beneficiarios, vigencia…" aria-label="Coberturas del seguro de vida"></textarea>
+            <p class="note">Va tal cual en el resumen y en el PDF. Si lo dejas vacío, solo se muestra la prima.</p>
           </div>
           <div class="field">
             <span class="lbl">Régimen tributario</span>
@@ -1108,7 +1179,7 @@
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
    "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
    "distProp","totalProp","notaFondoProp",
-   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp","hdResumen","bdResumen","notaAporteProp"
+   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp","hdResumen","bdResumen","notaAporteProp","capitalSeg","coberturasSeg","nombreCli"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* La situación actual ofrece lo que la persona puede tener hoy: AFP, los fondos
@@ -1834,6 +1905,8 @@
     L.push("");
     L.push("Tu aporte: " + $(B.apvTotal) + " al mes" +
       (B.seguroDentro > 0 ? ". De eso, " + $(B.aporte) + " se ahorra y " + $(B.seguroDentro) + " es la prima de tu seguro de vida (" + String(dec(el.seguroApv)).replace(".", ",") + " UF; no se acumula)." : "."));
+    var tramoTxt = TABLA[B.m.tramo].etq;
+    L.push("Tramo de impuesto aproximado: " + tramoTxt + ".");
     if (ganaB) {
       L.push("Beneficio tributario (régimen B): pagas " + $(rebajaMes) + " menos de impuesto al mes (" + $(ahorroB) + " al año). " +
         "El costo real para ti es " + $(B.apvTotal - rebajaMes) + " al mes.");
@@ -1858,24 +1931,116 @@
     L.push("· Saldo proyectado: " + mm(tuya.saldo) + ". Diferencia a favor de " +
       (proyectado >= tuya.saldo ? "la propuesta: " + mm(proyectado - tuya.saldo) : "la AFP: " + mm(tuya.saldo - proyectado)));
     L.push("");
+    var capUf = dec(el.capitalSeg), cober = el.coberturasSeg.value.trim();
+    if (B.seguroDentro > 0) {
+      L.push("Tu seguro de vida: prima de " + String(dec(el.seguroApv)).replace(".", ",") + " UF al mes (" + $(B.seguroDentro) + ")" +
+        (capUf > 0 ? ", capital asegurado de " + nf.format(capUf) + " UF (" + mm(capUf * p.uf) + " hoy)." : "."));
+      if (cober) L.push(cober);
+      L.push("");
+    }
     L.push("Importante: son rentabilidades pasadas, no garantizadas (salvo los fondos garantizados). " +
       "Un fondo " + PERFIL_SING[mB.perfil] + (mB.perfil === 2 ? " puede tener años con pérdidas importantes" : " también puede tener años negativos") +
       "; la proyección muestra un promedio, no un resultado seguro. Los montos están en pesos de hoy, sin inflación.");
     var texto = L.join("\n");
 
+    // ----- Presentación para PDF: una idea por página, números grandes -----
+    var hoy = new Date();
+    var fechaHoy = String(hoy.getDate()).padStart(2, "0") + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + hoy.getFullYear();
+    var esc = function (t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+    var tile = function (k, v, d) { return '<div class="p-tile"><span class="k">' + k + '</span><span class="v">' + v + '</span>' + (d ? '<span class="d">' + d + '</span>' : "") + '</div>'; };
+    var pie = '<footer class="p-pie">Propuesta APV' + (el.nombreCli.value.trim() ? " · " + esc(el.nombreCli.value.trim()) : "") + ' · ' + fechaHoy + ' · Estimación referencial en pesos de hoy</footer>';
+    var pagina = function (eyebrow, titulo, cuerpo) {
+      return '<section class="p-pag"><div class="p-eyebrow">' + eyebrow + '</div><h2>' + titulo + '</h2>' + cuerpo + pie + '</section>';
+    };
+    var I = "";
+    var tuyaP = afp[0];
+    var nombre = el.nombreCli.value.trim();
+    // 1. Portada
+    I += '<section class="p-pag p-portada"><div class="p-eyebrow">Propuesta de ahorro previsional voluntario</div>' +
+      (nombre ? '<div class="p-cliente">Preparada para ' + esc(nombre) + '</div>' : "") +
+      '<h1>Tu plan de ahorro<br>para la jubilación</h1>' +
+      '<div class="p-meta">' + fechaHoy + ' · ' + ed.cumplida + ' años hoy · jubilación a los ' + ed.retiro + ' · ' + plazo + ' de ahorro · tramo de impuesto ' + tramoTxt + '</div>' +
+      '<div class="p-tiles">' +
+        tile("Aportas", $(B.apvTotal), "al mes") +
+        (ganaB ? tile("Pagas menos impuesto", $(rebajaMes), "al mes") : tile("El Estado te aporta", $(bonoA), "al año")) +
+        tile("Podrías juntar", mm(proyectado), "a los " + ed.retiro + " años") +
+      '</div>' + pie + '</section>';
+    // 2. Costo real
+    I += pagina("Beneficio tributario", ganaB ? "Aportas " + $(B.apvTotal) + " y te cuesta " + $(B.apvTotal - rebajaMes) : "El Estado suma " + $(bonoA) + " al año a tu ahorro",
+      '<div class="p-tiles">' +
+        tile("Aporte mensual", $(B.apvTotal), B.seguroDentro > 0 ? $(B.aporte) + " ahorro + " + $(B.seguroDentro) + " seguro" : "") +
+        (ganaB
+          ? tile("Menos impuesto", $(rebajaMes), "al mes · " + $(ahorroB) + " al año") + tile("Costo real para ti", $(B.apvTotal - rebajaMes), "al mes")
+          : tile("Bono del Estado", $(bonoA), "al año, 15% del ahorro con tope de 6 UTM") + tile("Te cuesta", $(B.apvTotal), "al mes")) +
+      '</div><p class="p-txt">Tu tramo de impuesto aproximado es <b>' + tramoTxt + '</b>. ' + (ganaB
+        ? "Con el <b>régimen B</b>, el aporte se descuenta de tu sueldo antes de calcular el impuesto: pagas menos impuesto todos los meses."
+        : "Con el <b>régimen A</b>, el Estado deposita un bono del 15% de lo que ahorras directo en tu fondo, cada año.") + '</p>');
+    // 3. Inversión
+    I += pagina("Dónde se invierte", "Perfil " + PERFIL_SING[mB.perfil],
+      '<table class="p-t"><tr class="hd"><td>Fondo</td><td class="n">%</td><td>Rentabilidad real y período</td></tr>' +
+      mB.mezcla.map(function (m) {
+        return '<tr><td>' + esc(m.nom) + '</td><td class="n">' + Math.round(m.peso * 100) + '%</td><td class="b">' + esc(base(m)) + '</td></tr>';
+      }).join("") + '</table>' +
+      '<p class="p-txt">Rentabilidad <b>real</b>: lo que ganó cada fondo por sobre la inflación. Es el promedio del período indicado.</p>');
+    // 4. Proyección
+    I += pagina("Proyección a los " + ed.retiro + " años", "Podrías juntar " + mm(proyectado),
+      '<div class="p-tiles">' +
+        tile("Habrás aportado", mm(aportado), plazo) +
+        tile("Rentabilidad promedio", pct(rEq, 2), "real al año, todo el plazo") +
+        tile("Pensión aproximada", $(pensionMes(proyectado)), "al mes por " + PENSION_ANIOS + " años") +
+      '</div>' + grafico(mB, afp, n, costo, ed, 900));
+    // 5. Comparativo AFP
+    I += pagina("Comparado con tu AFP", (proyectado >= tuyaP.saldo ? mm(proyectado - tuyaP.saldo) + " más que " : mm(tuyaP.saldo - proyectado) + " menos que ") + esc(tuyaP.f.nom),
+      '<table class="p-t"><tr class="hd"><td>Mismo aporte, mismo perfil</td><td class="n">Rentabilidad real</td><td class="n">Saldo a los ' + ed.retiro + '</td></tr>' +
+      '<tr class="tot"><td><b>Propuesta</b></td><td class="n">' + pct(rEq, 2) + '</td><td class="n"><b>' + mm(proyectado) + '</b></td></tr>' +
+      afp.map(function (x) {
+        return '<tr><td>' + esc(x.f.nom) + '</td><td class="n">' + pct(tasaNeta(x.f) / 100, 2) + '</td><td class="n">' + mm(x.saldo) + '</td></tr>';
+      }).join("") + '</table>' +
+      '<p class="p-txt">Se compara con el <b>Fondo ' + FONDO_EQUIV[mB.perfil] + '</b>, el de riesgo parecido a la propuesta. AFP: promedio de los últimos 5 años (<span class="nw">' +
+      fechaCorta(AFP_DATOS.desde) + '</span> a <span class="nw">' + fechaCorta(AFP_DATOS.hasta) + '</span>), datos de la Superintendencia de Pensiones, después de la comisión de APV.</p>');
+    // 6. Seguro de vida
+    if (B.seguroDentro > 0) {
+      I += pagina("Protección", "Tu seguro de vida",
+        '<div class="p-tiles">' +
+          tile("Prima", String(dec(el.seguroApv)).replace(".", ",") + " UF", $(B.seguroDentro) + " al mes, incluida en tu aporte") +
+          (capUf > 0 ? tile("Capital asegurado", nf.format(capUf) + " UF", mm(capUf * p.uf) + " al valor de hoy") : "") +
+        '</div>' + (cober ? '<div class="p-cober">' + esc(cober).replace(/\n/g, "<br>") + '</div>' : ""));
+    }
+    // 7. Importante
+    I += pagina("Antes de decidir", "Importante",
+      '<ul class="p-lista"><li>Las proyecciones usan <b>rentabilidades pasadas</b>, ya descontada la inflación, y suponen que se repiten. No son una garantía, salvo la tasa contractual de los fondos garantizados.</li>' +
+      '<li>Un fondo ' + PERFIL_SING[mB.perfil] + (mB.perfil === 2 ? ' puede tener años con <b>pérdidas importantes</b>' : ' también puede tener <b>años negativos</b>') + '; la proyección muestra un promedio.</li>' +
+      '<li>Los montos están en <b>pesos de hoy</b>. La pensión es una referencia (saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real), no una cotización de renta vitalicia.</li>' +
+      '<li>Estimación referencial. Para decisiones tributarias, valídala con un contador.</li></ul>');
+    document.getElementById("informe").innerHTML = I;
+    INFORME_TITULO = "Propuesta APV " + (nombre ? nombre + " " : "") + fechaHoy;
+
     el.hdResumen.textContent = "para copiar y pegar";
     el.bdResumen.innerHTML =
       '<textarea class="resumen-txt" id="resumenTxt" readonly aria-label="Resumen del APV">' + texto.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</textarea>' +
-      '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button><span class="ok" id="copiado"></span></div>' +
+      '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button>' +
+        '<button type="button" class="siguiente sec" id="btnPdf">Descargar PDF</button><span class="ok" id="copiado"></span></div>' +
       '<div class="divider"></div>' +
       '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs Fondo ' + FONDO_EQUIV[mB.perfil] + '</span>' +
       grafico(mB, afp, n, costo, ed) ;
     el.bdResumen.querySelector("#btnCopiar").addEventListener("click", copiarResumen);
+    el.bdResumen.querySelector("#btnPdf").addEventListener("click", descargarPdf);
     // La caja crece con el texto: el resumen se lee entero, sin scroll interno.
     var caja = el.bdResumen.querySelector("#resumenTxt");
     caja.style.height = "auto";
     caja.style.height = (caja.scrollHeight + 2) + "px";
     activarGrafico();
+  }
+
+  var INFORME_TITULO = "Propuesta APV";
+  /* El PDF sale de la ventana de impresión del navegador ("Guardar como PDF"): sin librerías,
+     y con texto real. El título del documento pasa a ser el nombre sugerido del archivo. */
+  function descargarPdf() {
+    var antes = document.title;
+    document.title = INFORME_TITULO;
+    var volver = function () { document.title = antes; window.removeEventListener("afterprint", volver); };
+    window.addEventListener("afterprint", volver);
+    window.print();
   }
 
   function copiarResumen() {
@@ -1888,7 +2053,7 @@
 
   /* Gráfico de líneas en SVG, sin librerías: una sola escala, saldo en millones. */
   var GRAF = null;
-  function grafico(mB, afp, n, costo, ed) {
+  function grafico(mB, afp, n, costo, ed, anchoFijo) {
     var B = ultimoB;
     var series = [{ nom: "Propuesta", cls: "prop", pts: saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico) }];
     afp.forEach(function (x, i) {
@@ -1896,7 +2061,7 @@
                     pts: saldoPorAnio(B.aporte, [{ id: x.f.id, tasa: tasaNeta(x.f), peso: 1 }], 0, n, B.esporadico) });
     });
     // Se dibuja al ancho real de la tarjeta para que el texto de los ejes no se achique en celular.
-    var W = Math.max(300, Math.min(640, (el.bdResumen.clientWidth || 640) - 32));
+    var W = anchoFijo || Math.max(300, Math.min(640, (el.bdResumen.clientWidth || 640) - 32));
     var H = Math.round(Math.max(220, W * 0.42)), mL = 34, mR = 72, mT = 12, mB_ = 26;
     var nP = series[0].pts.length, max = 0;
     series.forEach(function (s) { s.pts.forEach(function (v) { if (v > max) max = v; }); });
@@ -1921,12 +2086,14 @@
     });
     var fin = series[0].pts[nP - 1];
     g += '<text class="lbl-prop" x="' + (W - mR + 6) + '" y="' + (Y(fin) + 4) + '">Propuesta</text>';
+    var ley = '<div class="leyenda"><span><i style="background: var(--teal); height:4px"></i>Propuesta</span>' +
+      series.slice(1).map(function (s) { return '<span><i style="background: var(--ink-3); opacity:' + s.op + '"></i>' + s.nom + '</span>'; }).join("") + '</div>';
+    // En el informe impreso el gráfico va quieto: sin cruz, sin zona de hover, sin tooltip.
+    if (anchoFijo) return ley + '<div class="graf"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Saldo acumulado por edad">' + g + '</svg></div>';
     g += '<line class="cruz" id="grafCruz" x1="0" x2="0" y1="' + mT + '" y2="' + (H - mB_) + '" visibility="hidden"/>';
     g += '<rect id="grafHit" x="' + mL + '" y="' + mT + '" width="' + (W - mL - mR) + '" height="' + (H - mT - mB_) + '" fill="transparent"/>';
     GRAF = { series: series, X: X, nP: nP, W: W, mL: mL, mR: mR, edad: ed.cumplida };
 
-    var ley = '<div class="leyenda"><span><i style="background: var(--teal); height:4px"></i>Propuesta</span>' +
-      series.slice(1).map(function (s) { return '<span><i style="background: var(--ink-3); opacity:' + s.op + '"></i>' + s.nom + '</span>'; }).join("") + '</div>';
     return ley + '<div class="graf" id="graf"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Saldo acumulado por edad: propuesta y fondos de la AFP">' + g +
       '</svg><div class="tip" id="grafTip" hidden></div></div>' +
       '<p class="note">Edad en el eje horizontal. Mismo aporte en todas las líneas, en pesos de hoy. Pasa el mouse para ver los montos de cada año.</p>';
@@ -2088,7 +2255,7 @@
   });
 
   ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
-   "edadRetiro", "tasaHoy", "costoProd", "pctHoy", "seguroApv"].forEach(function (id) {
+   "edadRetiro", "tasaHoy", "costoProd", "pctHoy", "seguroApv", "capitalSeg", "coberturasSeg", "nombreCli"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
   el.fechaNac.addEventListener("input", render);
@@ -2248,5 +2415,6 @@
   });
 })();
 </script>
+<div id="informe" aria-hidden="true"></div>
 </body>
 </html>
