@@ -1048,8 +1048,6 @@
   var CONDICION = {};
   CONDICION[GRP_BR] = "BlackRock · solo sobre UF 1.000 · tasa en USD 2023–2025";
   CONDICION[GRP_JPM] = "JP Morgan · solo traspasos sobre UF 3.000 · tasa en USD 2023–2025";
-  // La propuesta arranca en 50/50 PB Agresivo + Garantizado, la mezcla típica de la propuesta MetLife.
-  var APV_INICIAL = { 9: 50, 20: 50 };
 
   function buscarFondo(id) {
     var todos = FONDOS.concat(FONDOS_MUTUOS);
@@ -1126,7 +1124,7 @@
         '<span class="nom">' + f.nom + (nota ? "<small>" + nota + "</small>" : "") + '</span>' +
         '<input type="number" step="0.01" id="apvTasa' + i + '" value="' + tasa + '"' +
           (f.tramo ? ' disabled placeholder="—"' : ' placeholder="—"') + ' aria-label="Tasa real anual de ' + f.nom + '">' +
-        '<input type="number" class="pct-in" min="0" max="100" step="5" id="apvPct' + i + '" value="' + (APV_INICIAL[i] || 0) + '" aria-label="Porcentaje en ' + f.nom + '">' +
+        '<input type="number" class="pct-in" min="0" max="100" step="5" id="apvPct' + i + '" value="0" aria-label="Porcentaje en ' + f.nom + '">' +
         '</div>';
     }
   })();
@@ -1590,6 +1588,8 @@
     var accA = acumular(A.aporte, mA.mezcla, 0, n, A.esporadico);
     var accB = hayProp ? acumular(B.aporte, mB.mezcla, costo, n, B.esporadico) : { total: 0, partes: [] };
     var saldoA = accA.total, saldoB = accB.total;
+    // La distribución parte vacía: hasta que se elijan fondos, la propuesta no tiene saldo que mostrar.
+    var sinFondos = hayProp && B.aporte > 0 && !mB.mezcla.length;
     var mesesN = Math.round(n * 12), anios = Math.floor(mesesN / 12);
     var puestoA = A.aporte * mesesN + A.esporadico * anios;
     var puestoB = B.aporte * mesesN + B.esporadico * anios;
@@ -1610,7 +1610,8 @@
     h += filaComp("Total que habrá aportado", $(puestoA), d($(puestoB)), { sub: true });
     /* Si alguna situación mezcla fondos, se muestra cuánto acumula cada parte: el
        garantizado va en UF a tasa fija y no se puede leer junto con el resto. */
-    h += filaComp("<b>Saldo al retiro</b>", "<b>" + $(saldoA) + "</b>", d("<b>" + $(saldoB) + "</b>"), { cls: "total", color: "posv" });
+    h += filaComp("<b>Saldo al retiro</b>", "<b>" + $(saldoA) + "</b>",
+      d(sinFondos ? "Elige los fondos" : "<b>" + $(saldoB) + "</b>"), { cls: "total", color: "posv" });
 
     // Desglose por fondo, para el caso mezclado: cada parte se acumuló por su cuenta.
     var desglose = function (acc, m) {
@@ -1658,6 +1659,11 @@
     el.hdAfp.textContent = "mismo aporte, a los " + ed.retiro;
     var periodoAfp = "Rentabilidad AFP: " + AFP_PERIODO + " (Superintendencia de Pensiones), real con UF. ";
     var mB = leerProp();
+    if (!mB.mezcla.length) {
+      el.tablaAfp.innerHTML = "";
+      el.notaAfp.innerHTML = '<p class="empty">Asigna porcentajes en la distribución de la propuesta para compararla con la AFP.</p>';
+      return;
+    }
     var prop = acumular(B.aporte, mB.mezcla, dec(el.costoProd), n, B.esporadico).total;
 
     var h = '<thead><tr><th></th><th>Saldo al retiro</th><th>Pensión / mes</th><th>vs propuesta</th></tr></thead><tbody>';
@@ -1714,6 +1720,8 @@
     if (ed && !ed.error && ed.aniosRestantes > 0 && X.aporte > 0) {
       var n = ed.aniosRestantes;
       var mz = hayProp ? leerProp() : leerMezcla("fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy");
+    }
+    if (mz && mz.mezcla.length) {
       var costo = hayProp ? dec(el.costoProd) : 0;
       var bonoMes = bonoA / 12;
       var fondoB = acumular(X.aporte, mz.mezcla, costo, n, X.esporadico).total;
