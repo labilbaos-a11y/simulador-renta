@@ -2058,6 +2058,11 @@
     }
     return (lo + hi) / 2;
   }
+  // "Rentabilidad Fondo A AFP Cuprum" o "Rentabilidad Fondo A promedio AFP": deja claro contra qué se compara.
+  function nomAfpGraf(f) {
+    var t = f.id.split("-")[1];
+    return "Rentabilidad Fondo " + t + (f.afp === "SISTEMA" ? " promedio AFP" : " AFP " + AFP_NOMBRES[f.afp]);
+  }
   function mm(v) { return "$" + (v / 1e6).toFixed(1).replace(".", ",") + " MM"; }
 
   function pintarResumen(A, B, hayProp, p) {
@@ -2255,7 +2260,7 @@
       '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button>' +
         '<button type="button" class="siguiente sec" id="btnPdf">Descargar PDF</button><span class="ok" id="copiado"></span></div>' +
       '<div class="divider"></div>' +
-      '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs Fondo ' + FONDO_EQUIV[mB.perfil] + '</span>' +
+      '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs ' + nomAfpGraf(afp[0].f).replace("Rentabilidad ", "") + '</span>' +
       grafico(mB, afp, n, costo, ed) ;
     el.bdResumen.querySelector("#btnCopiar").addEventListener("click", copiarResumen);
     el.bdResumen.querySelector("#btnPdf").addEventListener("click", descargarPdf);
@@ -2402,9 +2407,11 @@
   var GRAF = null;
   function grafico(mB, afp, n, costo, ed, anchoFijo, Bx) {
     var B = Bx || ultimoB;
-    var series = [{ nom: "Propuesta", cls: "prop", pts: saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico) }];
+    var ptsProp = saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico);
+    var rProp = tasaEquivalente(B.aporte, n, B.esporadico, ptsProp[ptsProp.length - 1]);
+    var series = [{ nom: "Rentabilidad propuesta " + pct(rProp, 2), cls: "prop", pts: ptsProp }];
     afp.forEach(function (x, i) {
-      series.push({ nom: x.f.nom.replace(/^Promedio sistema — /, "Promedio sistema Fondo "), op: GRIS_AFP[i * 3],
+      series.push({ nom: nomAfpGraf(x.f) + " " + pct(tasaNeta(x.f) / 100, 2), op: GRIS_AFP[i * 3],
                     pts: saldoPorAnio(B.aporte, [{ id: x.f.id, tasa: tasaNeta(x.f), peso: 1 }], 0, n, B.esporadico) });
     });
     // Se dibuja al ancho real de la tarjeta para que el texto de los ejes no se achique en celular.
@@ -2433,7 +2440,7 @@
     });
     var fin = series[0].pts[nP - 1];
     g += '<text class="lbl-prop" x="' + (W - mR + 6) + '" y="' + (Y(fin) + 4) + '">Propuesta</text>';
-    var ley = '<div class="leyenda"><span><i style="background: var(--teal); height:4px"></i>Propuesta</span>' +
+    var ley = '<div class="leyenda"><span><i style="background: var(--teal); height:4px"></i>' + series[0].nom + '</span>' +
       series.slice(1).map(function (s) { return '<span><i style="background: var(--ink-3); opacity:' + s.op + '"></i>' + s.nom + '</span>'; }).join("") + '</div>';
     // En el informe impreso el gráfico va quieto: sin cruz, sin zona de hover, sin tooltip.
     if (anchoFijo) return ley + '<div class="graf"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Saldo acumulado por edad">' + g + '</svg></div>';
