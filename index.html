@@ -392,6 +392,31 @@
   }
   .mezcla select:disabled { opacity: .5; }
 
+  /* ---------- distribución de la propuesta: los fondos que ofrece el APV ---------- */
+  .dist { display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+  .dist-hd, .dist-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) 62px 62px; gap: 8px; align-items: center;
+  }
+  .dist-hd { padding: 7px 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 650; }
+  .dist-hd span:not(:first-child) { text-align: right; }
+  .dist-grp {
+    padding: 10px 0 4px; font-size: 11px; font-weight: 650; color: var(--ink-2);
+    border-top: 1px solid var(--line-soft);
+  }
+  .dist-grp small { display: block; font-weight: 400; color: var(--clay); font-size: 10.5px; margin-top: 1px; }
+  .dist-row { padding: 4px 0; border-top: 1px dashed var(--line-soft); }
+  .dist-row .nom { font-size: 12.5px; line-height: 1.3; color: var(--ink-2); }
+  .dist-row .nom small { display: block; font-size: 10.5px; color: var(--ink-3); }
+  .dist-row input { width: 100%; text-align: right; padding: 5px 7px; font-size: 12.5px; }
+  .dist-row.on .nom { color: var(--ink); font-weight: 600; }
+  .dist-row.on .pct-in { border-color: var(--teal); }
+  .dist-total {
+    display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0 0;
+    border-top: 2px solid var(--ink); font-weight: 700; font-size: 13px;
+  }
+  .dist-total b { font-family: var(--mono); }
+  .dist-total.mal b { color: var(--clay); }
+
   /* ---------- acento de cada situación ---------- */
   .acento-hoy .card-hd  { box-shadow: inset 3px 0 0 var(--ink-3); }
   .acento-prop .card-hd { box-shadow: inset 3px 0 0 var(--teal); }
@@ -665,19 +690,9 @@
 
           <div class="divider"></div>
           <div class="field">
-            <span class="lbl">Dónde se invertiría</span>
-            <div class="mezcla">
-              <select id="fondoProp" aria-label="Primer fondo, situación propuesta"></select>
-              <span class="pct"><input type="number" id="pctProp" min="0" max="100" step="5" value="50" aria-label="Porcentaje en el primer fondo"><i>%</i></span>
-            </div>
-            <div class="mezcla">
-              <select id="fondoProp2" aria-label="Segundo fondo, situación propuesta"></select>
-              <span class="pct resto" id="restoProp">50%</span>
-            </div>
-            <div class="field" id="wrapTasaProp" hidden>
-              <label class="lbl" for="tasaProp">Tasa manual real anual %</label>
-              <input type="number" id="tasaProp" step="0.01" value="3.46">
-            </div>
+            <span class="lbl">Distribución de inversiones</span>
+            <div class="dist" id="distProp" role="table" aria-label="Distribución de inversiones de la propuesta"></div>
+            <div class="dist-total" id="totalProp"></div>
             <p class="note" id="notaFondoProp"></p>
           </div>
           <div class="field">
@@ -817,7 +832,8 @@
     { id: "sisC", grp: "AFP — cuenta APV", nom: "Promedio sistema — C",  bruto: 1.16, com: COM_APV_AFP, hist: true },
     { id: "pbAgr", grp: "Otros", nom: "Santander PB Agresivo", bruto: 3.46, com: 0, hist: true },
     { id: "pbEq",  grp: "Otros", nom: "Santander PB Equilibrio", bruto: 2.06, com: 0, hist: true },
-    { id: "gar",   grp: "Otros", nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false },
+    { id: "gar",   grp: "Otros", nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false,
+      tramo: { alta: 0.015, baja: 0.010, corte: 2029 + 5 / 12 } },
     { id: "man",   grp: "Otros", nom: "Otro — tasa manual",   bruto: null, com: 0, hist: true }
   ];
   /* Fondos mutuos: rentabilidad NOMINAL anualizada a 5 años al 17-11-2026 (en pesos, de cada
@@ -874,11 +890,72 @@
   var iOtros = FONDOS.findIndex(function (f) { return f.grp === "Otros"; });
   FONDOS.splice.apply(FONDOS, [iOtros, 0].concat(FONDOS_MUTUOS));
 
+  /* Fondos que se pueden ofrecer en el APV, en el orden del formulario de distribución.
+     "ref" toma la tasa del catálogo de arriba; si no, "tasa" ya viene real.
+     - Banchile Depósito XXI serie D no está en el informe: se usa la serie L.
+     - Itaú National Equity e Itaú Dinámico no tienen 5 años: se usan 3 años
+       (17-11-2023 a 17-11-2026), pasados a real con la UF ($36.500,68 → $41.350,42).
+     - BlackRock y JP Morgan rinden en dólares y solo traen años calendario: se usa
+       2023–2025 anualizado, menos ~3% de inflación de EE.UU. No incluye el tipo de cambio.
+     - Santander Acciones EE.UU. no tiene historia: la tasa queda para escribirla a mano. */
+  var UF_3A_INI = 36500.68;
+  function real3a(acum) { return Math.round((Math.pow((1 + acum / 100) / (UF_FM_FIN / UF_3A_INI), 1 / 3) - 1) * 10000) / 100; }
+  var IPC_EEUU = 3.0;
+  function realUsd(a, b, c) {
+    var g = Math.pow((1 + a / 100) * (1 + b / 100) * (1 + c / 100), 1 / 3);
+    return Math.round((g / (1 + IPC_EEUU / 100) - 1) * 10000) / 100;
+  }
+  var GRP_BR = "BlackRock — en dólares", GRP_JPM = "JP Morgan — en dólares";
+  var APV = [
+    { nom: "Banchile Depósito XXI - D", ref: "fm2", nota: "tasa de la serie L" },
+    { nom: "Banchile Horizonte - L", ref: "fm1" },
+    { nom: "Itaú Dinámico Ultra - F3", ref: "fm6" },
+    { nom: "Itaú Gestionado Agresivo - F1", ref: "fm13" },
+    { nom: "Itaú Gestionado Conservador - F1", ref: "fm7" },
+    { nom: "Itaú Gestionado Moderado - F1", ref: "fm10" },
+    { nom: "Santander Private Banking Equilibrio Global", ref: "fm33" },
+    { nom: "Santander Private Banking Prudente Global", ref: "fm31" },
+    { nom: "Itaú National Equity Simple", tasa: real3a(54.08), nota: "3 años" },
+    { nom: "Santander Private Banking Agresivo Global", ref: "fm35" },
+    { nom: "Itaú Dinámico Simple", tasa: real3a(21.59), nota: "3 años" },
+    { nom: "LarrainVial Acciones Nacionales - A", ref: "fm18" },
+    { nom: "LarrainVial Ahorro Capital - A", ref: "fm16" },
+    { nom: "LarrainVial Cuenta Activa Agresivo - A", ref: "fm23" },
+    { nom: "LarrainVial Cuenta Activa Conservador - A", ref: "fm20" },
+    { nom: "LarrainVial Cuenta Activa Moderado - A", ref: "fm22" },
+    { nom: "Santander GO Acciones Globales ESG - Ejecutiva", ref: "fm39" },
+    { nom: "Santander Acciones Global Emergente - Ejecutiva", ref: "fm27" },
+    { nom: "Santander Renta Largo Plazo Pesos - Universal", ref: "fm30" },
+    { nom: "Santander Renta Largo Plazo UF - Universal", ref: "fm29" },
+    { nom: "MetLife Garantizado 2,1% temporal, 0,5% fijo desde 01-01-2031", contractual: true,
+      tramo: { alta: 0.021, baja: 0.005, corte: 2031 } },
+    { nom: "Santander Selectas Chile - Global", ref: "fm28" },
+    { nom: "Santander Acciones Estados Unidos - IB", tasa: null, nota: "sin historia: escribe la tasa" },
+    { nom: "MetLife Garantizado 0,5%", tasa: 0.5, contractual: true },
+    { grp: GRP_BR, nom: "BGF Asian Dragon - A", tasa: realUsd(26.51, 5.32, 0.42) },
+    { grp: GRP_BR, nom: "BGF Emerging Markets Bond - A", tasa: realUsd(11.15, 6.69, 13.86) },
+    { grp: GRP_BR, nom: "BGF Fixed Income Global Opportunities - A", tasa: realUsd(5.90, 3.08, 5.33) },
+    { grp: GRP_BR, nom: "BGF Global Dynamic Equity - A", tasa: realUsd(13.88, 14.05, 15.57) },
+    { grp: GRP_BR, nom: "BGF Latin American - A", tasa: realUsd(49.16, -34.02, 36.35) },
+    { grp: GRP_BR, nom: "BGF US Basic Value - A", tasa: realUsd(14.07, 6.20, 9.76) },
+    { grp: GRP_BR, nom: "BGF US Growth - A", tasa: realUsd(7.39, 28.52, 50.86) },
+    { grp: GRP_BR, nom: "BGF USD High Yield Bond - A", tasa: realUsd(6.66, 7.38, 12.43) },
+    { grp: GRP_JPM, nom: "JPM Emerging Markets Equity - A", tasa: realUsd(32.16, 1.23, 5.31) },
+    { grp: GRP_JPM, nom: "JPM Global Income - A", tasa: realUsd(9.01, 8.20, 8.41) },
+    { grp: GRP_JPM, nom: "JPM Global Strategic Bond - A", tasa: realUsd(5.56, 5.06, 5.67) },
+    { grp: GRP_JPM, nom: "JPM Greater China - A", tasa: realUsd(31.22, 12.10, -10.19) }
+  ];
+  var CONDICION = {};
+  CONDICION[GRP_BR] = "Solo con montos sobre UF 1.000. Tasa 2023–2025, sin tipo de cambio.";
+  CONDICION[GRP_JPM] = "Solo en traspasos sobre UF 3.000. Tasa 2023–2025, sin tipo de cambio.";
+  // La propuesta arranca en 50/50 PB Agresivo + Garantizado, la mezcla típica de la propuesta MetLife.
+  var APV_INICIAL = { 9: 50, 20: 50 };
+
   function buscarFondo(id) { for (var i = 0; i < FONDOS.length; i++) if (FONDOS[i].id === id) return FONDOS[i]; return null; }
   function tasaNeta(f) { return f.bruto === null ? null : Math.round((f.bruto - f.com) * 100) / 100; }
 
-  // El garantizado paga 1,5% real hasta el 31-05-2029 y 1,0% desde ahí.
-  var GAR_ALTA = 0.015, GAR_BAJA = 0.010, GAR_CORTE = 2029 + 5 / 12;
+  // Los garantizados cambian de tasa en una fecha: el antiguo paga 1,5% real hasta el
+  // 31-05-2029 y 1,0% desde ahí; el actual 2,1% hasta el 01-01-2031 y 0,5% desde ahí.
   function hoyDecimal() { var d = new Date(); return d.getFullYear() + d.getMonth() / 12; }
 
   /* ---------------- Estado ---------------- */
@@ -892,25 +969,45 @@
    "cardAnual","tablaAnual","resultadoAnual","tablaTramos",
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
    "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
-   "fondoProp","fondoProp2","pctProp","restoProp","tasaProp","wrapTasaProp","notaFondoProp",
+   "distProp","totalProp","notaFondoProp",
    "costoProd","cardProy","hdProy","tablaProy","avisoProy"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   // Poblar los cuatro selectores. La propuesta arranca en 50/50 PB Agresivo + Garantizado,
   // que es la mezcla que trae la propuesta de MetLife.
-  [["fondoHoy", "cupA"], ["fondoHoy2", "cupC"],
-   ["fondoProp", "pbAgr"], ["fondoProp2", "gar"]].forEach(function (par) {
+  [["fondoHoy", "cupA"], ["fondoHoy2", "cupC"]].forEach(function (par) {
     var h = "", grp = null;
     FONDOS.forEach(function (f) {
       if (f.grp !== grp) { h += (grp ? "</optgroup>" : "") + '<optgroup label="' + f.grp + '">'; grp = f.grp; }
       var t = tasaNeta(f);
-      var etq = f.id === "gar" ? "MetLife Garantizado — 1,5% / 1,0%"
+      var etq = f.tramo ? f.nom + " — " + (f.tramo.alta * 100).toFixed(1).replace(".", ",") + "% / " + (f.tramo.baja * 100).toFixed(1).replace(".", ",") + "%"
               : f.id === "man" ? "Otro — tasa manual"
               : f.nom + " — " + t.toFixed(2).replace(".", ",") + "%";
       h += '<option value="' + f.id + '"' + (f.id === par[1] ? " selected" : "") + ">" + etq + "</option>";
     });
     el[par[0]].innerHTML = h + "</optgroup>";
   });
+
+  /* Filas de la distribución: fondo, tasa real (editable) y porcentaje. */
+  (function () {
+    var fmt = function (v) { return v === null || v === undefined ? "" : String(v); };
+    var h = '<div class="dist-hd" role="row"><span>Fondo</span><span>Tasa %</span><span>%</span></div>', grp = null;
+    APV.forEach(function (f, i) {
+      if ((f.grp || null) !== grp) {
+        grp = f.grp || null;
+        h += '<div class="dist-grp">' + grp + '<small>' + CONDICION[grp] + '</small></div>';
+      }
+      var tasa = f.tramo ? "" : fmt(f.ref ? tasaNeta(buscarFondo(f.ref)) : f.tasa);
+      var nota = f.tramo ? etiquetaTramo(f.tramo) + " real" : (f.nota || "");
+      h += '<div class="dist-row" role="row" id="apvFila' + i + '">' +
+        '<span class="nom">' + f.nom + (nota ? "<small>" + nota + "</small>" : "") + '</span>' +
+        '<input type="number" step="0.01" id="apvTasa' + i + '" value="' + tasa + '"' +
+          (f.tramo ? ' disabled placeholder="—"' : ' placeholder="—"') + ' aria-label="Tasa real anual de ' + f.nom + '">' +
+        '<input type="number" class="pct-in" min="0" max="100" step="5" id="apvPct' + i + '" value="' + (APV_INICIAL[i] || 0) + '" aria-label="Porcentaje en ' + f.nom + '">' +
+        '</div>';
+    });
+    el.distProp.innerHTML = h;
+  })();
 
   function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
   function dec(input) { return Number(String(input.value).replace(",", ".")) || 0; }
@@ -944,12 +1041,13 @@
     };
   }
 
-  /* Tasa de un fondo en el mes t (años desde hoy). El garantizado baja de 1,5% a 1,0%
-     en may-2029, así que no se puede resolver con un promedio único. */
+  /* Tasa de un fondo en el mes t (años desde hoy). Los garantizados bajan de tasa en
+     una fecha fija, así que no se pueden resolver con un promedio único. */
   function tasaEn(m, t) {
-    if (m.id === "gar") return (hoyDecimal() + t < GAR_CORTE) ? GAR_ALTA : GAR_BAJA;
+    if (m.tramo) return (hoyDecimal() + t < m.tramo.corte) ? m.tramo.alta : m.tramo.baja;
     return m.tasa / 100;
   }
+  function etiquetaTramo(tr) { return pct(tr.alta, 1) + " → " + pct(tr.baja, 1); }
   // mezcla = [{id, tasa, peso}] con los pesos sumando 1
   function tasaMezcla(mezcla, t) {
     var r = 0;
@@ -982,16 +1080,36 @@
     var manual = dec(el[idTasa]);
     var tasaDe = function (f) { return f.id === "man" ? manual : (f.bruto === null ? 0 : tasaNeta(f)); };
     var m = [];
-    if (pct > 0) m.push({ id: fa.id, nom: fa.nom, tasa: tasaDe(fa), peso: pct / 100 });
-    if (pct < 100) m.push({ id: fb.id, nom: fb.nom, tasa: tasaDe(fb), peso: (100 - pct) / 100 });
+    var item = function (f, peso) {
+      return { id: f.id, nom: f.nom, tasa: tasaDe(f), peso: peso, tramo: f.tramo,
+               contractual: f.hist === false, completo: f.per === "fm", per: f.per };
+    };
+    if (pct > 0) m.push(item(fa, pct / 100));
+    if (pct < 100) m.push(item(fb, (100 - pct) / 100));
     return { mezcla: m, pct: pct, fa: fa, fb: fb, usaManual: fa.id === "man" || fb.id === "man" };
   }
+  /* Lee la distribución de la propuesta. Si los porcentajes no suman 100 se reparten
+     en proporción, y el total queda marcado para que se corrija. */
+  function leerProp() {
+    var m = [], total = 0, sinTasa = false;
+    APV.forEach(function (f, i) {
+      var p = Math.max(0, dec(document.getElementById("apvPct" + i)));
+      if (!p) return;
+      var crudo = document.getElementById("apvTasa" + i).value;
+      if (!f.tramo && crudo === "") sinTasa = true;
+      total += p;
+      m.push({ id: "apv" + i, nom: f.nom, tasa: f.tramo ? 0 : dec(document.getElementById("apvTasa" + i)), peso: p,
+               tramo: f.tramo, contractual: !!f.contractual, completo: true, per: f.ref ? "fm" : "apv" });
+    });
+    m.forEach(function (x) { x.peso = x.peso / total; });
+    return { mezcla: m, total: total, sinTasa: sinTasa, pct: m.length === 1 ? 100 : 0 };
+  }
+
   // Etiqueta legible de la mezcla: "50% PB Agresivo + 50% Garantizado"
   function etiquetaMezcla(x) {
     return x.mezcla.map(function (m) {
       // En los fondos mutuos la administradora sí distingue: hay un "Agresivo" de Itaú y otro de Santander.
-      var fm = (buscarFondo(m.id) || {}).per === "fm";
-      return Math.round(m.peso * 100) + "% " + (fm ? m.nom : m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, ""));
+      return Math.round(m.peso * 100) + "% " + (m.completo ? m.nom : m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, ""));
     }).join(" + ");
   }
 
@@ -1343,7 +1461,7 @@
     el.hdProy.textContent = "a los " + ed.retiro + " años";
 
     var mA = leerMezcla("fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy");
-    var mB = leerMezcla("fondoProp", "pctProp", "fondoProp2", "tasaProp");
+    var mB = leerProp();
     var costo = dec(el.costoProd);
     // Solo el aporte se acumula: la prima del seguro compra cobertura, no capital.
     var accA = acumular(A.aporte, mA.mezcla, 0, n, A.esporadico);
@@ -1358,7 +1476,7 @@
     // Tasa de cada fondo por separado: "3,46% y 1,5% → 1,0%". No se promedian.
     function tasas(m, c) {
       return m.map(function (f) {
-        return f.id === "gar" ? "1,5% → 1,0%" : pct((f.tasa - (c || 0)) / 100, 2);
+        return f.tramo ? etiquetaTramo(f.tramo) : pct((f.tasa - (c || 0)) / 100, 2);
       }).join(" y ");
     }
     h += filaComp("Fondo", etiquetaMezcla(mA), d(etiquetaMezcla(mB)), { cls: "txt" });
@@ -1379,16 +1497,17 @@
     if (dA || dB) h += filaComp("Cómo se reparte", dA || "—", hayProp ? (dB || "—") : null, { sub: true, cls: "txt" });
     el.tablaProy.innerHTML = h + "</tbody>";
 
-    var garantizado = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { return m.id === "gar"; });
-    var usaFm = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { var f = buscarFondo(m.id); return f && f.per === "fm"; });
+    var todos = mA.mezcla.concat(hayProp ? mB.mezcla : []);
+    var garantizado = todos.some(function (m) { return m.contractual; });
+    var usaFm = todos.some(function (m) { return m.per === "fm" || m.per === "apv"; });
     el.avisoProy.innerHTML =
       '<div class="callout warn"><span class="hd">Rentabilidades de los últimos 5 años</span>' +
       (usaFm
-        ? 'Son el promedio real anualizado de 5 años, ya descontada la inflación: 2021–2025 para AFP y fondos con APV, y noviembre 2021 a noviembre 2026 para los fondos mutuos. '
+        ? 'Son promedios reales anualizados, ya descontada la inflación: 2021–2025 para AFP, y noviembre 2021 a noviembre 2026 para los fondos mutuos (3 años en los que no tienen 5; 2023–2025 en dólares para BlackRock y JP Morgan, sin tipo de cambio). '
         : 'Son el promedio real anualizado 2021–2025, ya descontada la inflación. ') +
       '<b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
       (garantizado
-        ? ' La única excepción es el <b>Fondo Garantizado de MetLife</b>: su 1,5% hasta mayo de 2029 y 1,0% desde entonces son tasa contractual, no proyección.'
+        ? ' La excepción son los <b>fondos garantizados de MetLife</b>: su tasa es contractual, no proyección.'
         : ' Ninguno de los fondos comparados aquí garantiza su tasa.') +
       '</div>' +
       (costo > 0 ? '<p class="note">La columna propuesta va neta del ' + pct(costo / 100, 1) + ' anual de costo del producto.</p>' : "");
@@ -1425,8 +1544,7 @@
     var ed = edades();
     if (ed && !ed.error && ed.aniosRestantes > 0 && X.aporte > 0) {
       var n = ed.aniosRestantes;
-      var mz = leerMezcla(hayProp ? "fondoProp" : "fondoHoy", hayProp ? "pctProp" : "pctHoy",
-                          hayProp ? "fondoProp2" : "fondoHoy2", hayProp ? "tasaProp" : "tasaHoy");
+      var mz = hayProp ? leerProp() : leerMezcla("fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy");
       var costo = hayProp ? dec(el.costoProd) : 0;
       var bonoMes = bonoA / 12;
       var fondoB = acumular(X.aporte, mz.mezcla, costo, n, X.esporadico).total;
@@ -1524,11 +1642,12 @@
   });
 
   ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
-   "edadRetiro", "tasaHoy", "tasaProp", "costoProd", "pctHoy", "pctProp"].forEach(function (id) {
+   "edadRetiro", "tasaHoy", "costoProd", "pctHoy"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
   el.fechaNac.addEventListener("input", render);
-  ["fondoHoy", "fondoHoy2", "fondoProp", "fondoProp2"].forEach(function (id) {
+  el.distProp.addEventListener("input", render);
+  ["fondoHoy", "fondoHoy2"].forEach(function (id) {
     el[id].addEventListener("change", render);
   });
 
@@ -1536,7 +1655,6 @@
      y la rentabilidad resultante. */
   function refrescarMezclas() {
     [["Hoy", "fondoHoy", "pctHoy", "fondoHoy2", "tasaHoy", "restoHoy", "wrapTasaHoy", "notaFondoHoy"],
-     ["Prop", "fondoProp", "pctProp", "fondoProp2", "tasaProp", "restoProp", "wrapTasaProp", "notaFondoProp"]
     ].forEach(function (c) {
       var x = leerMezcla(c[1], c[2], c[3], c[4]);
       el[c[5]].textContent = (100 - x.pct) + "%";
@@ -1548,6 +1666,21 @@
         : "Mezcla: <b>" + etiquetaMezcla(x) + "</b> — rentabilidad real " +
           (Math.abs(r0 - r5) < 1e-9 ? "<b>" + pct(r0, 2) + "</b>" : "<b>" + pct(r0, 2) + "</b> y luego <b>" + pct(r5, 2) + "</b>");
     });
+
+    var x = leerProp();
+    APV.forEach(function (f, i) {
+      document.getElementById("apvFila" + i).classList.toggle("on", dec(document.getElementById("apvPct" + i)) > 0);
+    });
+    var cuadra = Math.abs(x.total - 100) < 1e-9;
+    el.totalProp.className = "dist-total" + (cuadra ? "" : " mal");
+    el.totalProp.innerHTML = "<span>Total</span><b>" + String(Math.round(x.total * 100) / 100).replace(".", ",") + "%</b>";
+    var r0 = tasaMezcla(x.mezcla, 0), r5 = tasaMezcla(x.mezcla, 10);
+    el.notaFondoProp.innerHTML =
+      (!x.mezcla.length ? "Asigna un porcentaje a al menos un fondo."
+        : (cuadra ? "" : '<b style="color:var(--clay)">La suma debe dar 100%.</b> Mientras tanto se reparte en proporción. ') +
+          "Rentabilidad real de la mezcla: " +
+          (Math.abs(r0 - r5) < 1e-9 ? "<b>" + pct(r0, 2) + "</b>" : "<b>" + pct(r0, 2) + "</b> y luego <b>" + pct(r5, 2) + "</b>")) +
+      (x.sinTasa ? ' <b style="color:var(--clay)">Hay un fondo sin tasa: se calcula con 0%.</b>' : "");
   }
 
   el.afp.addEventListener("change", function () {
