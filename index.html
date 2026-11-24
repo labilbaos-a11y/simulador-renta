@@ -404,6 +404,34 @@
   }
   .mezcla select:disabled { opacity: .5; }
 
+  /* ---------- resumen final: texto para copiar y gráfico ---------- */
+  .resumen-txt {
+    width: 100%; min-height: 220px; resize: vertical; font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+  }
+  .resumen-acc { display: flex; gap: 10px; align-items: center; }
+  .resumen-acc .siguiente { width: auto; padding: 9px 16px; }
+  .resumen-acc .ok { font-size: 12px; color: var(--teal); }
+  .graf { position: relative; }
+  .graf svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .graf .eje { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-3); }
+  .graf .grid { stroke: var(--line-soft); stroke-width: 1; }
+  .graf .base { stroke: var(--line); stroke-width: 1; }
+  .graf .lin { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .graf .lin.prop { stroke: var(--teal); stroke-width: 3; }
+  .graf .lbl-prop { font-size: 11.5px; font-weight: 650; fill: var(--ink); }
+  .graf .cruz { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+  .graf .tip {
+    position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 11.5px; min-width: 190px;
+  }
+  .graf .tip b { font-family: var(--mono); font-weight: 600; }
+  .graf .tip .r { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .graf .tip .r i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11.5px; color: var(--ink-2); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .leyenda i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+
   /* ---------- distribución de la propuesta: los fondos que ofrece el APV ---------- */
   .dist { display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
   .dist-hd, .dist-row {
@@ -792,6 +820,11 @@
         </div>
       </section>
 
+      <section class="card" id="cardResumen">
+        <div class="card-hd"><h2>Resumen del APV</h2><span class="hint" id="hdResumen"></span></div>
+        <div class="card-bd" id="bdResumen"></div>
+      </section>
+
     </div>
   </div>
 
@@ -1072,7 +1105,7 @@
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
    "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
    "distProp","totalProp","notaFondoProp",
-   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp"
+   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp","hdResumen","bdResumen"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* La situación actual ofrece lo que la persona puede tener hoy: AFP, los fondos
@@ -1369,6 +1402,8 @@
     pintarBonos(A, B, hayProp, p);
     pintarProyeccion(A, B, hayProp);
     pintarAfp(B, hayProp);
+    ultimoB = B;
+    pintarResumen(A, B, hayProp, p);
     pintarRegimen(A, B, hayProp, p);
     pintarAnual(A.a, honAnual, p);
     pintarTramos(honAnual > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo);
@@ -1688,6 +1723,183 @@
       'Pensión: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real, en pesos de hoy.</p>';
   }
 
+  /* ---------------- Resumen final ----------------
+     Texto para pegar en un correo o WhatsApp y un gráfico del saldo año a año: la
+     propuesta contra los cinco fondos de la AFP del titular, con el mismo aporte. */
+  var ultimoB = null;
+  var GRIS_AFP = [1, .82, .66, .52, .4];   // opacidad del gris: A el más marcado, E el más suave
+
+  function saldoPorAnio(aporte, mezcla, costo, n, esporadico) {
+    var pts = [], tope = Math.ceil(n);
+    for (var k = 0; k <= tope; k++) pts.push(acumular(aporte, mezcla, costo, Math.min(k, n), esporadico).total);
+    return pts;
+  }
+  function mm(v) { return "$" + (v / 1e6).toFixed(1).replace(".", ",") + " MM"; }
+
+  function pintarResumen(A, B, hayProp, p) {
+    var ed = edades();
+    var mB = hayProp ? leerProp() : null;
+    if (!hayProp || B.apvTotal <= 0 || !ed || ed.error || !mB.mezcla.length) {
+      el.hdResumen.textContent = "";
+      el.bdResumen.innerHTML = '<p class="empty">' +
+        (!ed || ed.error ? "Pon la fecha de nacimiento, carga la propuesta y elige sus fondos para armar el resumen."
+          : !hayProp || B.apvTotal <= 0 ? "Carga un APV en la propuesta para armar el resumen."
+          : "Elige los fondos de la propuesta para armar el resumen.") + '</p>';
+      return;
+    }
+    var n = ed.aniosRestantes, costo = dec(el.costoProd);
+
+    // Régimen: el mismo criterio que la tarjeta «Régimen recomendado».
+    var conB = escenario(B.m.bruto, B.aporte, B.seguroDentro, B.seguroFuera, B.esporadico, "B", 0, p);
+    var rebajaMes = conB.rebaja, ahorroB = rebajaMes * 12;
+    var bonoA = Math.min(0.15 * B.apvTotal * 12, 6 * UTM);
+    var ganaB = ahorroB >= bonoA;
+    var saldo = acumular(B.aporte, mB.mezcla, costo, n, B.esporadico).total;
+    var saldoA = acumular(B.aporte + bonoA / 12, mB.mezcla, costo, n, B.esporadico).total;
+    var largoB = saldo + ahorroB * n;
+
+    var suAfp = ((el.afp.options[el.afp.selectedIndex] || {}).text || "").split(" ")[0].toUpperCase();
+    if (!AFP_NOMBRES[suAfp]) suAfp = "SISTEMA";
+    var afp = FONDOS.filter(function (f) { return f.afp === suAfp; }).map(function (f) {
+      return { f: f, saldo: acumular(B.aporte, [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total };
+    });
+    var r0 = tasaMezcla(mB.mezcla, 0), r5 = tasaMezcla(mB.mezcla, 10);
+    var hoy = new Date();
+
+    // ----- Texto -----
+    var L = [];
+    L.push("RESUMEN APV — " + String(hoy.getDate()).padStart(2, "0") + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + hoy.getFullYear());
+    L.push("");
+    L.push("Edad: " + ed.cumplida + " años · se pensiona a los " + ed.retiro + " (" + n.toFixed(1).replace(".", ",") + " años de ahorro)");
+    L.push("Sueldo bruto: " + $(B.m.bruto) + " · tramo marginal " + TABLA[B.m.tramo].etq);
+    L.push("Aporte mensual APV: " + $(B.apvTotal) + (B.seguroDentro > 0 ? " (ahorro " + $(B.aporte) + " + seguro " + $(B.seguroDentro) + ")" : ""));
+    L.push("");
+    L.push("RÉGIMEN RECOMENDADO: " + (ganaB ? "B — rebaja de impuesto" : "A — bono del Estado 15%"));
+    if (ganaB) {
+      L.push("· Rebaja de impuesto: " + $(rebajaMes) + " al mes (" + $(ahorroB) + " al año)");
+      L.push("· Costo real del aporte: " + $(B.apvTotal - rebajaMes) + " al mes");
+    } else {
+      L.push("· Bono del Estado: " + $(bonoA) + " al año, directo al fondo (tope 6 UTM)");
+      L.push("· La alternativa B rebajaría " + $(ahorroB) + " de impuesto al año");
+    }
+    var otroLargo = ganaB ? saldoA - largoB : largoB - saldoA;
+    if (otroLargo > 0) {
+      L.push("· Ojo: a " + Math.round(n) + " años el régimen " + (ganaB ? "A" : "B") + " junta " + mm(otroLargo) + " más" +
+        (ganaB ? ", porque el bono capitaliza; el B lo supera solo si se reinvierte el ahorro de impuesto." : "."));
+    }
+    L.push("");
+    L.push("DISTRIBUCIÓN");
+    mB.mezcla.forEach(function (m) {
+      L.push("· " + Math.round(m.peso * 100) + "% " + m.nom + " — " + (m.tramo ? etiquetaTramo(m.tramo) : pct(m.tasa / 100, 2)) + " real");
+    });
+    L.push("Rentabilidad real de la mezcla: " + pct(r0, 2) + (Math.abs(r0 - r5) > 1e-9 ? " (luego " + pct(r5, 2) + ")" : "") +
+      (costo > 0 ? ", antes del costo del producto de " + pct(costo / 100, 1) : ""));
+    L.push("");
+    L.push("PROYECCIÓN A LOS " + ed.retiro + " (en pesos de hoy)");
+    L.push("· Saldo estimado: " + mm(saldo) + (ganaB ? "" : " (" + mm(saldoA) + " con el bono del A)"));
+    L.push("· Pensión aproximada: " + $(pensionMes(ganaB ? saldo : saldoA)) + " al mes por " + PENSION_ANIOS + " años");
+    L.push("");
+    L.push("COMPARATIVO CON AFP " + AFP_NOMBRES[suAfp].toUpperCase() + " (mismo aporte)");
+    afp.forEach(function (x) {
+      var dif = saldo - x.saldo;
+      L.push("· " + x.f.nom.replace(/^Promedio sistema — /, "Sistema ") + " (" + pct(tasaNeta(x.f) / 100, 2) + "): " + mm(x.saldo) +
+        " → propuesta " + (dif >= 0 ? "+" : "−") + mm(Math.abs(dif)));
+    });
+    L.push("");
+    L.push("Supuestos: rentabilidades reales pasadas (AFP: " + AFP_PERIODO + "; fondos mutuos: 5 años a nov-2026). " +
+      "No garantizan rentabilidad futura, salvo la tasa contractual de los fondos garantizados. Estimación referencial.");
+    var texto = L.join("\n");
+
+    el.hdResumen.textContent = "para copiar y pegar";
+    el.bdResumen.innerHTML =
+      '<textarea class="resumen-txt" id="resumenTxt" readonly aria-label="Resumen del APV">' + texto.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</textarea>' +
+      '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button><span class="ok" id="copiado"></span></div>' +
+      '<div class="divider"></div>' +
+      '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs AFP ' + AFP_NOMBRES[suAfp] + '</span>' +
+      grafico(mB, afp, n, costo, ed) ;
+    el.bdResumen.querySelector("#btnCopiar").addEventListener("click", copiarResumen);
+    activarGrafico();
+  }
+
+  function copiarResumen() {
+    var t = document.getElementById("resumenTxt"), ok = document.getElementById("copiado");
+    var listo = function () { ok.textContent = "Copiado"; setTimeout(function () { ok.textContent = ""; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t.value).then(listo, function () { t.select(); document.execCommand("copy"); listo(); });
+    } else { t.select(); document.execCommand("copy"); listo(); }
+  }
+
+  /* Gráfico de líneas en SVG, sin librerías: una sola escala, saldo en millones. */
+  var GRAF = null;
+  function grafico(mB, afp, n, costo, ed) {
+    var B = ultimoB;
+    var series = [{ nom: "Propuesta", cls: "prop", pts: saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico) }];
+    afp.forEach(function (x, i) {
+      series.push({ nom: x.f.nom.replace(/^Promedio sistema — /, "Sistema "), op: GRIS_AFP[i],
+                    pts: saldoPorAnio(B.aporte, [{ id: x.f.id, tasa: tasaNeta(x.f), peso: 1 }], 0, n, B.esporadico) });
+    });
+    // Se dibuja al ancho real de la tarjeta para que el texto de los ejes no se achique en celular.
+    var W = Math.max(300, Math.min(640, (el.bdResumen.clientWidth || 640) - 32));
+    var H = Math.round(Math.max(220, W * 0.42)), mL = 34, mR = 72, mT = 12, mB_ = 26;
+    var nP = series[0].pts.length, max = 0;
+    series.forEach(function (s) { s.pts.forEach(function (v) { if (v > max) max = v; }); });
+    var paso = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500].map(function (x) { return x * 1e6; })
+      .find(function (x) { return max / x <= 5; }) || 1e9;
+    var techo = Math.ceil(max / paso) * paso || paso;
+    var X = function (k) { return mL + (W - mL - mR) * k / Math.max(1, nP - 1); };
+    var Y = function (v) { return mT + (H - mT - mB_) * (1 - v / techo); };
+    var g = "";
+    for (var v = 0; v <= techo + 1; v += paso) {
+      g += '<line class="' + (v === 0 ? "base" : "grid") + '" x1="' + mL + '" x2="' + (W - mR) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>' +
+           '<text class="eje" x="' + (mL - 6) + '" y="' + (Y(v) + 3.5) + '" text-anchor="end">' + (v / 1e6).toFixed(0) + '</text>';
+    }
+    var cadaX = nP > 24 || W < 420 ? 5 : nP > 12 ? 2 : 1;
+    for (var k = 0; k < nP; k += cadaX) {
+      g += '<text class="eje" x="' + X(k) + '" y="' + (H - 8) + '" text-anchor="middle">' + (ed.cumplida + k) + '</text>';
+    }
+    // Primero los grises, encima la propuesta.
+    series.slice(1).concat(series[0]).forEach(function (s) {
+      var d = s.pts.map(function (v, k) { return (k ? "L" : "M") + X(k).toFixed(1) + " " + Y(v).toFixed(1); }).join("");
+      g += '<path class="lin ' + (s.cls || "") + '" d="' + d + '"' + (s.cls ? "" : ' style="stroke: var(--ink-3); opacity:' + s.op + '"') + '/>';
+    });
+    var fin = series[0].pts[nP - 1];
+    g += '<text class="lbl-prop" x="' + (W - mR + 6) + '" y="' + (Y(fin) + 4) + '">Propuesta</text>';
+    g += '<line class="cruz" id="grafCruz" x1="0" x2="0" y1="' + mT + '" y2="' + (H - mB_) + '" visibility="hidden"/>';
+    g += '<rect id="grafHit" x="' + mL + '" y="' + mT + '" width="' + (W - mL - mR) + '" height="' + (H - mT - mB_) + '" fill="transparent"/>';
+    GRAF = { series: series, X: X, nP: nP, W: W, mL: mL, mR: mR, edad: ed.cumplida };
+
+    var ley = '<div class="leyenda"><span><i style="background: var(--teal); height:4px"></i>Propuesta</span>' +
+      series.slice(1).map(function (s) { return '<span><i style="background: var(--ink-3); opacity:' + s.op + '"></i>' + s.nom + '</span>'; }).join("") + '</div>';
+    return ley + '<div class="graf" id="graf"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Saldo acumulado por edad: propuesta y fondos de la AFP">' + g +
+      '</svg><div class="tip" id="grafTip" hidden></div></div>' +
+      '<p class="note">Edad en el eje horizontal. Mismo aporte en todas las líneas, en pesos de hoy. Pasa el mouse para ver los montos de cada año.</p>';
+  }
+
+  function activarGrafico() {
+    var hit = document.getElementById("grafHit"), cruz = document.getElementById("grafCruz"), tip = document.getElementById("grafTip");
+    var caja = document.getElementById("graf");
+    if (!hit) return;
+    function mover(ev) {
+      var svg = hit.ownerSVGElement, r = svg.getBoundingClientRect(), esc = GRAF.W / r.width;
+      var x = (ev.clientX - r.left) * esc;
+      var k = Math.round((x - GRAF.mL) / (GRAF.X(1) - GRAF.X(0)));
+      k = Math.max(0, Math.min(GRAF.nP - 1, k));
+      cruz.setAttribute("x1", GRAF.X(k)); cruz.setAttribute("x2", GRAF.X(k)); cruz.setAttribute("visibility", "visible");
+      tip.innerHTML = '<div style="margin-bottom:4px;color:var(--ink-3)">A los <b>' + (GRAF.edad + k) + '</b> años</div>' +
+        GRAF.series.map(function (s) {
+          var color = s.cls ? "var(--teal)" : "var(--ink-3)";
+          return '<div class="r"><span><i style="background:' + color + ';opacity:' + (s.op || 1) + '"></i>' + s.nom + '</span><b>' + mm(s.pts[k]) + '</b></div>';
+        }).join("");
+      tip.hidden = false;
+      var px = GRAF.X(k) / esc, ancho = tip.offsetWidth;
+      tip.style.left = Math.max(0, Math.min(caja.clientWidth - ancho, px + (px > caja.clientWidth / 2 ? -ancho - 12 : 12))) + "px";
+      tip.style.top = "8px";
+    }
+    hit.addEventListener("pointermove", mover);
+    hit.addEventListener("pointerdown", mover);
+    hit.addEventListener("pointerleave", function () { tip.hidden = true; cruz.setAttribute("visibility", "hidden"); });
+  }
+
   function pintarRegimen(A, B, hayProp, p) {
     var X = hayProp ? B : A;
     if (X.apvTotal <= 0) {
@@ -1824,6 +2036,9 @@
   });
   el.fechaNac.addEventListener("input", render);
   el.distProp.addEventListener("input", render);
+  // El gráfico del resumen se dibuja al ancho de la tarjeta: se rehace si cambia la ventana.
+  var tAncho = null;
+  window.addEventListener("resize", function () { clearTimeout(tAncho); tAncho = setTimeout(render, 150); });
   ["fondoHoy", "fondoHoy2"].forEach(function (id) {
     el[id].addEventListener("change", render);
   });
