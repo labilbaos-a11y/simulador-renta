@@ -23,6 +23,22 @@ independiente y tope de APV están en «Parámetros y topes» dentro de la pági
 porque cambian mes a mes. Los valores por defecto son aproximados — ajústalos si
 necesitas precisión al peso. Solo mueven el resultado en rentas altas.
 
+## Rentabilidades de las AFP (automáticas)
+
+Las tasas de los fondos A a E de las 7 AFP y del promedio del sistema se recalculan solas
+todos los días con `.github/workflows/actualizar-afp.yml`:
+
+1. `scripts/actualizar-afp.mjs` baja los valores cuota diarios de la
+   [Superintendencia de Pensiones](https://www.spensiones.cl) y la UF de la
+   [SII](https://www.sii.cl/valores_y_fechas/uf/).
+2. Calcula la rentabilidad **real** anualizada de los últimos 5 años al último día
+   publicado y reescribe el bloque `/* AFP:INICIO */ … /* AFP:FIN */` de `index.html`.
+3. Si cambió algo, hace commit y GitHub Pages publica.
+
+Si una fuente no responde o un número sale fuera de rango, el script no toca nada y el
+sitio sigue con los últimos datos buenos. Para correrlo a mano: pestaña *Actions* →
+*Actualizar rentabilidades AFP* → *Run workflow*, o `node scripts/actualizar-afp.mjs`.
+
 ## Cómo funciona
 
 Un solo archivo HTML sin dependencias: nada de CDN, fuentes externas ni llamadas de

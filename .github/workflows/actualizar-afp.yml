@@ -1,0 +1,47 @@
+# Todos los días baja los valores cuota de la Superintendencia de Pensiones y la UF de la
+# SII, recalcula la rentabilidad real de las AFP y la publica en el simulador.
+name: Actualizar rentabilidades AFP
+
+on:
+  schedule:
+    # 12:30 UTC = 9:30 en Chile (8:30 en invierno). La Superintendencia publica los
+    # valores cuota del día hábil anterior durante la mañana.
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: actualizar-afp
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Recalcular rentabilidades
+        run: node scripts/actualizar-afp.mjs
+
+      - name: Publicar si cambiaron
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet index.html; then
+            echo "Sin cambios."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          hasta=$(grep -o '"hasta": "[0-9-]*"' index.html | head -1 | cut -d'"' -f4)
+          git commit -am "Actualizar rentabilidades AFP al $hasta"
+          git push
+          # Un push hecho con el token de Actions no siempre dispara GitHub Pages: se pide a mano.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "No se pudo pedir el build de Pages; se publicará con el próximo push."

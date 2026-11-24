@@ -485,6 +485,7 @@
     <div class="subhead">
       <span>Tabla SII <b>agosto 2026</b></span>
       <span>UTM <b>$71.649</b></span>
+      <span>Rentabilidad AFP al <b id="fechaAfp"></b></span>
       <span>Compara la situación actual con una propuesta</span>
     </div>
   </header>
@@ -838,31 +839,97 @@
                "julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
   /* ---------------- Fondos ----------------
-     Rentabilidad REAL anualizada 2021-2025 (5 años calendario completos), deflactada por UF.
-     Fuente: Superintendencia de Pensiones. Los fondos de AFP van netos de la comisión de
-     administración de APV (0,6% anual sobre saldo en Cuprum).
+     AFP: rentabilidad REAL anualizada de los últimos 5 años, con los valores cuota de la
+     Superintendencia de Pensiones y la UF de la SII. scripts/actualizar-afp.mjs reescribe
+     este bloque todos los días (GitHub Actions); no editarlo a mano.
+     Los fondos de AFP van netos de la comisión de administración de APV (0,6% anual sobre saldo).
      El garantizado NO es histórico: es tasa contractual, y por eso es el único que no
      depende de que el pasado se repita. */
+  /* AFP:INICIO */
+  var AFP_DATOS = {
+    "desde": "2021-11-22",
+    "hasta": "2026-11-22",
+    "ufDesde": 30657.03,
+    "ufHasta": 41384.81,
+    "tasas": {
+      "CAPITAL": {
+        "A": 1.92,
+        "B": 1.97,
+        "C": 0.98,
+        "D": 0.92,
+        "E": 1.41
+      },
+      "CUPRUM": {
+        "A": 1.89,
+        "B": 1.94,
+        "C": 0.86,
+        "D": 0.94,
+        "E": 1.29
+      },
+      "HABITAT": {
+        "A": 1.78,
+        "B": 1.73,
+        "C": 0.87,
+        "D": 0.98,
+        "E": 1.41
+      },
+      "MODELO": {
+        "A": 1.6,
+        "B": 1.36,
+        "C": 0.52,
+        "D": 0.56,
+        "E": 0.86
+      },
+      "PLANVITAL": {
+        "A": 2,
+        "B": 2.14,
+        "C": 1.17,
+        "D": 1.17,
+        "E": 1.59
+      },
+      "PROVIDA": {
+        "A": 1.67,
+        "B": 1.74,
+        "C": 0.47,
+        "D": 0.54,
+        "E": 1.42
+      },
+      "UNO": {
+        "A": 1.75,
+        "B": 1.79,
+        "C": 0.86,
+        "D": 0.89,
+        "E": 1.22
+      },
+      "SISTEMA": {
+        "A": 1.82,
+        "B": 1.79,
+        "C": 0.8,
+        "D": 0.82,
+        "E": 1.35
+      }
+    }
+  };
+  /* AFP:FIN */
   var COM_APV_AFP = 0.6;
-  var FONDOS = [
-    { id: "cupA", grp: "AFP — cuenta APV", nom: "Cuprum Fondo A",        bruto: 3.83, com: COM_APV_AFP, hist: true },
-    { id: "cupB", grp: "AFP — cuenta APV", nom: "Cuprum Fondo B",        bruto: 3.17, com: COM_APV_AFP, hist: true },
-    { id: "cupC", grp: "AFP — cuenta APV", nom: "Cuprum Fondo C",        bruto: 1.24, com: COM_APV_AFP, hist: true },
-    { id: "cupD", grp: "AFP — cuenta APV", nom: "Cuprum Fondo D",        bruto: 0.20, com: COM_APV_AFP, hist: true },
-    { id: "cupE", grp: "AFP — cuenta APV", nom: "Cuprum Fondo E",        bruto: 0.17, com: COM_APV_AFP, hist: true },
-    { id: "habA", grp: "AFP — cuenta APV", nom: "Habitat Fondo A",       bruto: 3.84, com: COM_APV_AFP, hist: true },
-    { id: "habB", grp: "AFP — cuenta APV", nom: "Habitat Fondo B",       bruto: 3.24, com: COM_APV_AFP, hist: true },
-    { id: "habC", grp: "AFP — cuenta APV", nom: "Habitat Fondo C",       bruto: 1.34, com: COM_APV_AFP, hist: true },
-    { id: "habD", grp: "AFP — cuenta APV", nom: "Habitat Fondo D",       bruto: 0.21, com: COM_APV_AFP, hist: true },
-    { id: "habE", grp: "AFP — cuenta APV", nom: "Habitat Fondo E",       bruto: 0.14, com: COM_APV_AFP, hist: true },
-    { id: "sisA", grp: "AFP — cuenta APV", nom: "Promedio sistema — A",  bruto: 3.75, com: COM_APV_AFP, hist: true },
-    { id: "sisC", grp: "AFP — cuenta APV", nom: "Promedio sistema — C",  bruto: 1.16, com: COM_APV_AFP, hist: true },
-    { id: "pbAgr", grp: "Otros", nom: "Santander PB Agresivo", bruto: 3.46, com: 0, hist: true },
-    { id: "pbEq",  grp: "Otros", nom: "Santander PB Equilibrio", bruto: 2.06, com: 0, hist: true },
-    { id: "gar",   grp: "Otros", nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false,
+  var AFP_NOMBRES = { CAPITAL: "Capital", CUPRUM: "Cuprum", HABITAT: "Habitat", MODELO: "Modelo",
+                      PLANVITAL: "PlanVital", PROVIDA: "Provida", UNO: "Uno", SISTEMA: "Promedio sistema" };
+  function fechaCorta(f) { var p = f.split("-"); return p[2] + "-" + p[1] + "-" + p[0]; }
+  var AFP_PERIODO = "5 años al " + fechaCorta(AFP_DATOS.hasta);
+  document.getElementById("fechaAfp").textContent = fechaCorta(AFP_DATOS.hasta);
+  var FONDOS = [];
+  Object.keys(AFP_NOMBRES).forEach(function (a) {
+    ["A", "B", "C", "D", "E"].forEach(function (t) {
+      FONDOS.push({ id: a + "-" + t, afp: a, grp: "AFP " + AFP_NOMBRES[a],
+                    nom: a === "SISTEMA" ? "Promedio sistema — " + t : AFP_NOMBRES[a] + " Fondo " + t,
+                    bruto: AFP_DATOS.tasas[a][t], com: COM_APV_AFP, hist: true });
+    });
+  });
+  FONDOS.push(
+    { id: "gar",   grp: "Otros", nom: "MetLife Garantizado antiguo",  bruto: null, com: 0, hist: false,
       tramo: { alta: 0.015, baja: 0.010, corte: 2029 + 5 / 12 } },
     { id: "man",   grp: "Otros", nom: "Otro — tasa manual",   bruto: null, com: 0, hist: true }
-  ];
+  );
   /* Fondos mutuos: rentabilidad NOMINAL anualizada a 5 años al 17-11-2026 (en pesos, de cada
      serie), pasada a real con la UF: $30.591,10 el 17-11-2021 y $41.350,42 el 17-11-2026, es
      decir 6,21% anual. Van sin comisión aparte porque el valor cuota ya la descuenta.
@@ -913,9 +980,7 @@
   FONDOS_MUTUOS.forEach(function (f) {
     f.bruto = Math.round(((1 + f.nominal / 100) / (1 + INFL_FM) - 1) * 10000) / 100;
   });
-  // Los fondos mutuos van antes de "Otros", para que el garantizado y la tasa manual queden al final.
-  var iOtros = FONDOS.findIndex(function (f) { return f.grp === "Otros"; });
-  FONDOS.splice.apply(FONDOS, [iOtros, 0].concat(FONDOS_MUTUOS));
+  // Las series del informe no van a los selectores: solo dan la tasa a los fondos del APV.
 
   /* Fondos que se pueden ofrecer en el APV, en el orden del formulario de distribución.
      "ref" toma la tasa del catálogo de arriba; si no, "tasa" ya viene real.
@@ -986,7 +1051,11 @@
   // La propuesta arranca en 50/50 PB Agresivo + Garantizado, la mezcla típica de la propuesta MetLife.
   var APV_INICIAL = { 9: 50, 20: 50 };
 
-  function buscarFondo(id) { for (var i = 0; i < FONDOS.length; i++) if (FONDOS[i].id === id) return FONDOS[i]; return null; }
+  function buscarFondo(id) {
+    var todos = FONDOS.concat(FONDOS_MUTUOS);
+    for (var i = 0; i < todos.length; i++) if (todos[i].id === id) return todos[i];
+    return null;
+  }
   function tasaNeta(f) { return f.bruto === null ? null : Math.round((f.bruto - f.com) * 100) / 100; }
 
   // Los garantizados cambian de tasa en una fecha: el antiguo paga 1,5% real hasta el
@@ -1008,9 +1077,24 @@
    "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
-  // Poblar los cuatro selectores. La propuesta arranca en 50/50 PB Agresivo + Garantizado,
-  // que es la mezcla que trae la propuesta de MetLife.
-  [["fondoHoy", "cupA"], ["fondoHoy2", "cupC"]].forEach(function (par) {
+  /* La situación actual ofrece lo que la persona puede tener hoy: AFP, los fondos
+     disponibles en el APV (por perfil) y el garantizado antiguo. Los fondos del APV
+     sin tasa conocida quedan fuera, porque aquí no hay columna para escribirla. */
+  var iOtros = FONDOS.findIndex(function (f) { return f.grp === "Otros"; });
+  var delApv = [];
+  PERFILES.forEach(function (pf, k) {
+    APV.forEach(function (f, i) {
+      if (perfilDe(f) !== k) return;
+      var bruto = f.tramo ? null : (f.ref ? tasaNeta(buscarFondo(f.ref)) : f.tasa);
+      if (!f.tramo && bruto === null) return;
+      delApv.push({ id: "apvHoy" + i, grp: "APV — " + pf.nom.toLowerCase(), nom: f.nom, bruto: bruto, com: 0,
+                    hist: !f.contractual, tramo: f.tramo, per: "apv" });
+    });
+  });
+  FONDOS.splice.apply(FONDOS, [iOtros, 0].concat(delApv));
+
+  // Poblar los selectores de la situación actual.
+  [["fondoHoy", "CUPRUM-A"], ["fondoHoy2", "CUPRUM-C"]].forEach(function (par) {
     var h = "", grp = null;
     FONDOS.forEach(function (f) {
       if (f.grp !== grp) { h += (grp ? "</optgroup>" : "") + '<optgroup label="' + f.grp + '">'; grp = f.grp; }
@@ -1120,7 +1204,7 @@
     var m = [];
     var item = function (f, peso) {
       return { id: f.id, nom: f.nom, tasa: tasaDe(f), peso: peso, tramo: f.tramo,
-               contractual: f.hist === false, completo: f.per === "fm", per: f.per };
+               contractual: f.hist === false, completo: f.per === "fm" || f.per === "apv", per: f.per };
     };
     if (pct > 0) m.push(item(fa, pct / 100));
     if (pct < 100) m.push(item(fb, (100 - pct) / 100));
@@ -1542,8 +1626,8 @@
     el.avisoProy.innerHTML =
       '<div class="callout warn"><span class="hd">Rentabilidades de los últimos 5 años</span>' +
       (usaFm
-        ? 'Son promedios reales anualizados, ya descontada la inflación: 2021–2025 para AFP, y noviembre 2021 a noviembre 2026 para los fondos mutuos (3 años en los que no tienen 5; 2023–2025 en dólares para BlackRock y JP Morgan, sin tipo de cambio). '
-        : 'Son el promedio real anualizado 2021–2025, ya descontada la inflación. ') +
+        ? 'Son promedios reales anualizados, ya descontada la inflación: ' + AFP_PERIODO + ' para AFP, y noviembre 2021 a noviembre 2026 para los fondos mutuos (3 años en los que no tienen 5; 2023–2025 en dólares para BlackRock y JP Morgan, sin tipo de cambio). '
+        : 'Son el promedio real anualizado de los últimos ' + AFP_PERIODO + ', ya descontada la inflación. ') +
       '<b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
       (garantizado
         ? ' La excepción son los <b>fondos garantizados de MetLife</b>: su tasa es contractual, no proyección.'
@@ -1572,25 +1656,27 @@
     }
     var n = ed.aniosRestantes;
     el.hdAfp.textContent = "mismo aporte, a los " + ed.retiro;
+    var periodoAfp = "Rentabilidad AFP: " + AFP_PERIODO + " (Superintendencia de Pensiones), real con UF. ";
     var mB = leerProp();
     var prop = acumular(B.aporte, mB.mezcla, dec(el.costoProd), n, B.esporadico).total;
 
     var h = '<thead><tr><th></th><th>Saldo al retiro</th><th>Pensión / mes</th><th>vs propuesta</th></tr></thead><tbody>';
     h += '<tr class="total"><td>Propuesta<small class="afp-tasa">' + etiquetaMezcla(mB) + '</small></td>' +
       '<td class="n">' + $(prop) + '</td><td class="n">' + $(pensionMes(prop)) + '</td><td class="n">—</td></tr>';
-    var afpNom = (el.afp.options[el.afp.selectedIndex] || {}).text || "";
+    // Los cinco fondos de la AFP del titular y, de referencia, el promedio del sistema.
+    var suAfp = ((el.afp.options[el.afp.selectedIndex] || {}).text || "").split(" ")[0].toUpperCase();
     FONDOS.forEach(function (f) {
-      if (f.grp !== "AFP — cuenta APV") return;
+      if (f.afp !== suAfp && f.afp !== "SISTEMA") return;
       var saldo = acumular(B.aporte, [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total;
       var dif = prop - saldo;
-      var tuya = afpNom.split(" ")[0] && f.nom.indexOf(afpNom.split(" ")[0]) === 0;
+      var tuya = f.afp === suAfp;
       h += '<tr class="rule' + (tuya ? " tuya" : "") + '"><td class="sub">' + f.nom +
         '<small class="afp-tasa">' + pct(tasaNeta(f) / 100, 2) + ' real</small></td>' +
         '<td class="n">' + $(saldo) + '</td><td class="n">' + $(pensionMes(saldo)) + '</td>' +
         '<td class="n ' + (dif >= 0 ? "posv" : "neg") + '">' + (dif >= 0 ? "+" : "−") + $(Math.abs(dif)) + '</td></tr>';
     });
     el.tablaAfp.innerHTML = h + "</tbody>";
-    el.notaAfp.innerHTML = '<p class="note">Mismo aporte mensual (' + $(B.aporte) + ') y mismos años en cada alternativa. ' +
+    el.notaAfp.innerHTML = '<p class="note">' + periodoAfp + 'Mismo aporte mensual (' + $(B.aporte) + ') y mismos años en cada alternativa. ' +
       'La columna «vs propuesta» es cuánto más (verde) o menos (rojo) junta la propuesta que ese fondo. ' +
       'Los fondos de AFP van netos de la comisión de APV (0,6% anual); la propuesta, del costo del producto. ' +
       'Pensión: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real, en pesos de hoy.</p>';
