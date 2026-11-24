@@ -803,23 +803,77 @@
      depende de que el pasado se repita. */
   var COM_APV_AFP = 0.6;
   var FONDOS = [
-    { id: "cupA", nom: "Cuprum Fondo A",        bruto: 3.83, com: COM_APV_AFP, hist: true },
-    { id: "cupB", nom: "Cuprum Fondo B",        bruto: 3.17, com: COM_APV_AFP, hist: true },
-    { id: "cupC", nom: "Cuprum Fondo C",        bruto: 1.24, com: COM_APV_AFP, hist: true },
-    { id: "cupD", nom: "Cuprum Fondo D",        bruto: 0.20, com: COM_APV_AFP, hist: true },
-    { id: "cupE", nom: "Cuprum Fondo E",        bruto: 0.17, com: COM_APV_AFP, hist: true },
-    { id: "habA", nom: "Habitat Fondo A",       bruto: 3.84, com: COM_APV_AFP, hist: true },
-    { id: "habB", nom: "Habitat Fondo B",       bruto: 3.24, com: COM_APV_AFP, hist: true },
-    { id: "habC", nom: "Habitat Fondo C",       bruto: 1.34, com: COM_APV_AFP, hist: true },
-    { id: "habD", nom: "Habitat Fondo D",       bruto: 0.21, com: COM_APV_AFP, hist: true },
-    { id: "habE", nom: "Habitat Fondo E",       bruto: 0.14, com: COM_APV_AFP, hist: true },
-    { id: "sisA", nom: "Promedio sistema — A",  bruto: 3.75, com: COM_APV_AFP, hist: true },
-    { id: "sisC", nom: "Promedio sistema — C",  bruto: 1.16, com: COM_APV_AFP, hist: true },
-    { id: "pbAgr", nom: "Santander PB Agresivo", bruto: 3.46, com: 0, hist: true },
-    { id: "pbEq",  nom: "Santander PB Equilibrio", bruto: 2.06, com: 0, hist: true },
-    { id: "gar",   nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false },
-    { id: "man",   nom: "Otro — tasa manual",   bruto: null, com: 0, hist: true }
+    { id: "cupA", grp: "AFP — cuenta APV", nom: "Cuprum Fondo A",        bruto: 3.83, com: COM_APV_AFP, hist: true },
+    { id: "cupB", grp: "AFP — cuenta APV", nom: "Cuprum Fondo B",        bruto: 3.17, com: COM_APV_AFP, hist: true },
+    { id: "cupC", grp: "AFP — cuenta APV", nom: "Cuprum Fondo C",        bruto: 1.24, com: COM_APV_AFP, hist: true },
+    { id: "cupD", grp: "AFP — cuenta APV", nom: "Cuprum Fondo D",        bruto: 0.20, com: COM_APV_AFP, hist: true },
+    { id: "cupE", grp: "AFP — cuenta APV", nom: "Cuprum Fondo E",        bruto: 0.17, com: COM_APV_AFP, hist: true },
+    { id: "habA", grp: "AFP — cuenta APV", nom: "Habitat Fondo A",       bruto: 3.84, com: COM_APV_AFP, hist: true },
+    { id: "habB", grp: "AFP — cuenta APV", nom: "Habitat Fondo B",       bruto: 3.24, com: COM_APV_AFP, hist: true },
+    { id: "habC", grp: "AFP — cuenta APV", nom: "Habitat Fondo C",       bruto: 1.34, com: COM_APV_AFP, hist: true },
+    { id: "habD", grp: "AFP — cuenta APV", nom: "Habitat Fondo D",       bruto: 0.21, com: COM_APV_AFP, hist: true },
+    { id: "habE", grp: "AFP — cuenta APV", nom: "Habitat Fondo E",       bruto: 0.14, com: COM_APV_AFP, hist: true },
+    { id: "sisA", grp: "AFP — cuenta APV", nom: "Promedio sistema — A",  bruto: 3.75, com: COM_APV_AFP, hist: true },
+    { id: "sisC", grp: "AFP — cuenta APV", nom: "Promedio sistema — C",  bruto: 1.16, com: COM_APV_AFP, hist: true },
+    { id: "pbAgr", grp: "Otros", nom: "Santander PB Agresivo", bruto: 3.46, com: 0, hist: true },
+    { id: "pbEq",  grp: "Otros", nom: "Santander PB Equilibrio", bruto: 2.06, com: 0, hist: true },
+    { id: "gar",   grp: "Otros", nom: "MetLife Garantizado",  bruto: null, com: 0, hist: false },
+    { id: "man",   grp: "Otros", nom: "Otro — tasa manual",   bruto: null, com: 0, hist: true }
   ];
+  /* Fondos mutuos: rentabilidad NOMINAL anualizada a 5 años al 17-11-2026 (en pesos, de cada
+     serie), pasada a real con la UF: $30.591,10 el 17-11-2021 y $41.350,42 el 17-11-2026, es
+     decir 6,21% anual. Van sin comisión aparte porque el valor cuota ya la descuenta.
+     Quedan fuera las series sin 5 años de historia y los fondos en dólares. */
+  var UF_FM_INI = 30591.10, UF_FM_FIN = 41350.42;
+  var INFL_FM = Math.pow(UF_FM_FIN / UF_FM_INI, 1 / 5) - 1;
+  var FONDOS_MUTUOS = [
+    { id: "fm1", grp: "Fondos mutuos — Banchile", nom: "Banchile Horizonte L", nominal: 3.95, com: 0, hist: true, per: "fm" },
+    { id: "fm2", grp: "Fondos mutuos — Banchile", nom: "Banchile Depósito XXI L", nominal: 5.29, com: 0, hist: true, per: "fm" },
+    { id: "fm3", grp: "Fondos mutuos — Banchile", nom: "Banchile Asiático Accionario L", nominal: 2.77, com: 0, hist: true, per: "fm" },
+    { id: "fm4", grp: "Fondos mutuos — Itaú", nom: "Itaú Dinámico Ultra F1", nominal: 4.66, com: 0, hist: true, per: "fm" },
+    { id: "fm5", grp: "Fondos mutuos — Itaú", nom: "Itaú Dinámico Ultra F2", nominal: 5.82, com: 0, hist: true, per: "fm" },
+    { id: "fm6", grp: "Fondos mutuos — Itaú", nom: "Itaú Dinámico Ultra F3", nominal: 6.52, com: 0, hist: true, per: "fm" },
+    { id: "fm7", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Conservador F1", nominal: 4.31, com: 0, hist: true, per: "fm" },
+    { id: "fm8", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Conservador F2", nominal: 4.57, com: 0, hist: true, per: "fm" },
+    { id: "fm9", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Conservador F3", nominal: 5.10, com: 0, hist: true, per: "fm" },
+    { id: "fm10", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Moderado F1", nominal: 6.06, com: 0, hist: true, per: "fm" },
+    { id: "fm11", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Moderado F2", nominal: 6.59, com: 0, hist: true, per: "fm" },
+    { id: "fm12", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Moderado F3", nominal: 7.26, com: 0, hist: true, per: "fm" },
+    { id: "fm13", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Agresivo F1", nominal: 8.58, com: 0, hist: true, per: "fm" },
+    { id: "fm14", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Agresivo F2", nominal: 9.40, com: 0, hist: true, per: "fm" },
+    { id: "fm15", grp: "Fondos mutuos — Itaú", nom: "Itaú Gestionado Agresivo F3", nominal: 10.22, com: 0, hist: true, per: "fm" },
+    { id: "fm16", grp: "Fondos mutuos — LarrainVial", nom: "LV Ahorro Capital A", nominal: 5.23, com: 0, hist: true, per: "fm" },
+    { id: "fm17", grp: "Fondos mutuos — LarrainVial", nom: "LV Protección A", nominal: 3.57, com: 0, hist: true, per: "fm" },
+    { id: "fm18", grp: "Fondos mutuos — LarrainVial", nom: "LV Acciones Nacionales A", nominal: 14.18, com: 0, hist: true, per: "fm" },
+    { id: "fm19", grp: "Fondos mutuos — LarrainVial", nom: "LV Acciones Nacionales F", nominal: 15.60, com: 0, hist: true, per: "fm" },
+    { id: "fm20", grp: "Fondos mutuos — LarrainVial", nom: "LV Cuenta Activa Conservadora A", nominal: 4.75, com: 0, hist: true, per: "fm" },
+    { id: "fm21", grp: "Fondos mutuos — LarrainVial", nom: "LV Cuenta Activa Conservadora Q", nominal: 5.07, com: 0, hist: true, per: "fm" },
+    { id: "fm22", grp: "Fondos mutuos — LarrainVial", nom: "LV Cuenta Activa Moderada A", nominal: 6.37, com: 0, hist: true, per: "fm" },
+    { id: "fm23", grp: "Fondos mutuos — LarrainVial", nom: "LV Cuenta Activa Agresiva A", nominal: 9.35, com: 0, hist: true, per: "fm" },
+    { id: "fm24", grp: "Fondos mutuos — LarrainVial", nom: "LV Cuenta Activa Agresiva Q", nominal: 10.13, com: 0, hist: true, per: "fm" },
+    { id: "fm25", grp: "Fondos mutuos — Santander", nom: "Santander Acciones Global Emergente UNIVE", nominal: 6.22, com: 0, hist: true, per: "fm" },
+    { id: "fm26", grp: "Fondos mutuos — Santander", nom: "Santander Acciones Global Emergente INVER", nominal: 6.64, com: 0, hist: true, per: "fm" },
+    { id: "fm27", grp: "Fondos mutuos — Santander", nom: "Santander Acciones Global Emergente EJECU", nominal: 7.07, com: 0, hist: true, per: "fm" },
+    { id: "fm28", grp: "Fondos mutuos — Santander", nom: "Santander Acciones Selectas Chile GLOBA", nominal: 16.21, com: 0, hist: true, per: "fm" },
+    { id: "fm29", grp: "Fondos mutuos — Santander", nom: "Santander Renta Largo Plazo UF UNIVE", nominal: 5.54, com: 0, hist: true, per: "fm" },
+    { id: "fm30", grp: "Fondos mutuos — Santander", nom: "Santander Renta Largo Plazo Pesos UNIVE", nominal: 3.66, com: 0, hist: true, per: "fm" },
+    { id: "fm31", grp: "Fondos mutuos — Santander", nom: "Santander Prudente GLOBAL", nominal: 5.91, com: 0, hist: true, per: "fm" },
+    { id: "fm32", grp: "Fondos mutuos — Santander", nom: "Santander Prudente EJECU", nominal: 6.02, com: 0, hist: true, per: "fm" },
+    { id: "fm33", grp: "Fondos mutuos — Santander", nom: "Santander Equilibrio GLOBAL", nominal: 6.79, com: 0, hist: true, per: "fm" },
+    { id: "fm34", grp: "Fondos mutuos — Santander", nom: "Santander Equilibrio EJECU", nominal: 7.31, com: 0, hist: true, per: "fm" },
+    { id: "fm35", grp: "Fondos mutuos — Santander", nom: "Santander Agresivo GLOBAL", nominal: 12.30, com: 0, hist: true, per: "fm" },
+    { id: "fm36", grp: "Fondos mutuos — Santander", nom: "Santander Agresivo EJECU", nominal: 12.48, com: 0, hist: true, per: "fm" },
+    { id: "fm37", grp: "Fondos mutuos — Santander", nom: "Santander GO Acciones Globales ESG UNIVE", nominal: 16.44, com: 0, hist: true, per: "fm" },
+    { id: "fm38", grp: "Fondos mutuos — Santander", nom: "Santander GO Acciones Globales ESG INVER", nominal: 16.87, com: 0, hist: true, per: "fm" },
+    { id: "fm39", grp: "Fondos mutuos — Santander", nom: "Santander GO Acciones Globales ESG EJECU", nominal: 17.29, com: 0, hist: true, per: "fm" }
+  ];
+  FONDOS_MUTUOS.forEach(function (f) {
+    f.bruto = Math.round(((1 + f.nominal / 100) / (1 + INFL_FM) - 1) * 10000) / 100;
+  });
+  // Los fondos mutuos van antes de "Otros", para que el garantizado y la tasa manual queden al final.
+  var iOtros = FONDOS.findIndex(function (f) { return f.grp === "Otros"; });
+  FONDOS.splice.apply(FONDOS, [iOtros, 0].concat(FONDOS_MUTUOS));
+
   function buscarFondo(id) { for (var i = 0; i < FONDOS.length; i++) if (FONDOS[i].id === id) return FONDOS[i]; return null; }
   function tasaNeta(f) { return f.bruto === null ? null : Math.round((f.bruto - f.com) * 100) / 100; }
 
@@ -846,13 +900,16 @@
   // que es la mezcla que trae la propuesta de MetLife.
   [["fondoHoy", "cupA"], ["fondoHoy2", "cupC"],
    ["fondoProp", "pbAgr"], ["fondoProp2", "gar"]].forEach(function (par) {
-    el[par[0]].innerHTML = FONDOS.map(function (f) {
+    var h = "", grp = null;
+    FONDOS.forEach(function (f) {
+      if (f.grp !== grp) { h += (grp ? "</optgroup>" : "") + '<optgroup label="' + f.grp + '">'; grp = f.grp; }
       var t = tasaNeta(f);
       var etq = f.id === "gar" ? "MetLife Garantizado — 1,5% / 1,0%"
               : f.id === "man" ? "Otro — tasa manual"
               : f.nom + " — " + t.toFixed(2).replace(".", ",") + "%";
-      return '<option value="' + f.id + '"' + (f.id === par[1] ? " selected" : "") + ">" + etq + "</option>";
-    }).join("");
+      h += '<option value="' + f.id + '"' + (f.id === par[1] ? " selected" : "") + ">" + etq + "</option>";
+    });
+    el[par[0]].innerHTML = h + "</optgroup>";
   });
 
   function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
@@ -932,7 +989,9 @@
   // Etiqueta legible de la mezcla: "50% PB Agresivo + 50% Garantizado"
   function etiquetaMezcla(x) {
     return x.mezcla.map(function (m) {
-      return Math.round(m.peso * 100) + "% " + m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, "");
+      // En los fondos mutuos la administradora sí distingue: hay un "Agresivo" de Itaú y otro de Santander.
+      var fm = (buscarFondo(m.id) || {}).per === "fm";
+      return Math.round(m.peso * 100) + "% " + (fm ? m.nom : m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, ""));
     }).join(" + ");
   }
 
@@ -1321,9 +1380,13 @@
     el.tablaProy.innerHTML = h + "</tbody>";
 
     var garantizado = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { return m.id === "gar"; });
+    var usaFm = mA.mezcla.concat(hayProp ? mB.mezcla : []).some(function (m) { var f = buscarFondo(m.id); return f && f.per === "fm"; });
     el.avisoProy.innerHTML =
       '<div class="callout warn"><span class="hd">Rentabilidades de los últimos 5 años</span>' +
-      'Son el promedio real anualizado 2021–2025, ya descontada la inflación. <b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
+      (usaFm
+        ? 'Son el promedio real anualizado de 5 años, ya descontada la inflación: 2021–2025 para AFP y fondos con APV, y noviembre 2021 a noviembre 2026 para los fondos mutuos. '
+        : 'Son el promedio real anualizado 2021–2025, ya descontada la inflación. ') +
+      '<b>Rentabilidad pasada no garantiza rentabilidad futura.</b>' +
       (garantizado
         ? ' La única excepción es el <b>Fondo Garantizado de MetLife</b>: su 1,5% hasta mayo de 2029 y 1,0% desde entonces son tasa contractual, no proyección.'
         : ' Ninguno de los fondos comparados aquí garantiza su tasa.') +
