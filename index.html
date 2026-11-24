@@ -114,9 +114,33 @@
   .cols { display: grid; grid-template-columns: 1fr; gap: 22px; margin-top: 26px; }
   @media (min-width: 980px) {
     .cols { grid-template-columns: 372px minmax(0,1fr); gap: 26px; align-items: start; }
-    .panel-col { position: sticky; top: 20px; }
   }
-  .panel-col, .results { display: flex; flex-direction: column; gap: 16px; }
+  .panel-col, .results, .paso { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- etapas: datos, situación actual, cotización ----------
+     Una etapa a la vista: así la cotización queda arriba y no al fondo de la columna. */
+  .pasos {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  .pasos button {
+    appearance: none; border: 0; background: transparent; color: var(--ink-3); cursor: pointer;
+    border-radius: 7px; padding: 8px 4px; font: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .pasos button:hover { color: var(--ink); }
+  .pasos button:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .pasos .num { font-family: var(--mono); font-size: 11px; }
+  .pasos .txt { font-size: 12.5px; font-weight: 600; line-height: 1.2; text-align: center; }
+  .pasos button[aria-selected="true"] { background: var(--teal-soft); color: var(--teal); }
+  .siguiente {
+    appearance: none; cursor: pointer; width: 100%; padding: 11px 14px; border-radius: 9px;
+    border: 1px solid var(--teal); background: var(--teal); color: var(--surface);
+    font: inherit; font-size: 14px; font-weight: 600;
+  }
+  .siguiente:hover { filter: brightness(1.08); }
+  .siguiente:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 
   /* ---------- cards ---------- */
   .card {
@@ -426,6 +450,14 @@
     <!-- ================= ENTRADAS ================= -->
     <div class="panel-col">
 
+      <nav class="pasos" id="pasos" role="tablist" aria-label="Etapas de la simulación">
+        <button type="button" role="tab" id="tab1" aria-controls="paso1" aria-selected="true"><span class="num">1</span><span class="txt">Tus datos</span></button>
+        <button type="button" role="tab" id="tab2" aria-controls="paso2" aria-selected="false"><span class="num">2</span><span class="txt">Situación actual</span></button>
+        <button type="button" role="tab" id="tab3" aria-controls="paso3" aria-selected="false"><span class="num">3</span><span class="txt">Cotización</span></button>
+      </nav>
+
+      <div class="paso" id="paso1" role="tabpanel" aria-labelledby="tab1">
+
       <section class="card">
         <div class="card-hd"><h2>Titular</h2></div>
         <div class="card-bd">
@@ -518,6 +550,45 @@
         </div>
       </section>
 
+      <section class="card">
+        <div class="card-bd">
+          <details class="params">
+            <summary>Parámetros y topes</summary>
+            <div class="params-grid">
+              <div class="field">
+                <label class="lbl" for="uf">Valor UF ($)</label>
+                <input type="number" id="uf" step="1" value="40845">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeImp">Tope imponible (UF)</label>
+                <input type="number" id="topeImp" step="0.1" value="87.8">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeAfc">Tope AFC (UF)</label>
+                <input type="number" id="topeAfc" step="0.1" value="131.8">
+              </div>
+              <div class="field">
+                <label class="lbl" for="retencion">Retención boletas (%)</label>
+                <input type="number" id="retencion" step="0.05" value="15.25">
+              </div>
+              <div class="field">
+                <label class="lbl" for="tasaIndep">Cotización indep. (%)</label>
+                <input type="number" id="tasaIndep" step="0.1" value="20.7">
+              </div>
+              <div class="field">
+                <label class="lbl" for="topeApv">Tope APV B (UF/mes)</label>
+                <input type="number" id="topeApv" step="1" value="50">
+              </div>
+            </div>
+            <p class="note" style="margin-top:10px">La UF y los topes cambian seguido. Ajústalos si necesitas precisión al peso.</p>
+          </details>
+        </div>
+      </section>
+
+        <button type="button" class="siguiente" data-ir="2">Siguiente: situación actual →</button>
+      </div>
+
+      <div class="paso" id="paso2" role="tabpanel" aria-labelledby="tab2" hidden>
       <section class="card acento-hoy">
         <div class="card-hd"><h2>Situación actual</h2><span class="hint">hoy</span></div>
         <div class="card-bd">
@@ -563,6 +634,10 @@
         </div>
       </section>
 
+        <button type="button" class="siguiente" data-ir="3">Siguiente: cotización →</button>
+      </div>
+
+      <div class="paso" id="paso3" role="tabpanel" aria-labelledby="tab3" hidden>
       <section class="card acento-prop">
         <div class="card-hd"><h2>Situación propuesta</h2><span class="hint">con seguro APV</span></div>
         <div class="card-bd">
@@ -613,40 +688,7 @@
         </div>
       </section>
 
-      <section class="card">
-        <div class="card-bd">
-          <details class="params">
-            <summary>Parámetros y topes</summary>
-            <div class="params-grid">
-              <div class="field">
-                <label class="lbl" for="uf">Valor UF ($)</label>
-                <input type="number" id="uf" step="1" value="40845">
-              </div>
-              <div class="field">
-                <label class="lbl" for="topeImp">Tope imponible (UF)</label>
-                <input type="number" id="topeImp" step="0.1" value="87.8">
-              </div>
-              <div class="field">
-                <label class="lbl" for="topeAfc">Tope AFC (UF)</label>
-                <input type="number" id="topeAfc" step="0.1" value="131.8">
-              </div>
-              <div class="field">
-                <label class="lbl" for="retencion">Retención boletas (%)</label>
-                <input type="number" id="retencion" step="0.05" value="15.25">
-              </div>
-              <div class="field">
-                <label class="lbl" for="tasaIndep">Cotización indep. (%)</label>
-                <input type="number" id="tasaIndep" step="0.1" value="20.7">
-              </div>
-              <div class="field">
-                <label class="lbl" for="topeApv">Tope APV B (UF/mes)</label>
-                <input type="number" id="topeApv" step="1" value="50">
-              </div>
-            </div>
-            <p class="note" style="margin-top:10px">La UF y los topes cambian seguido. Ajústalos si necesitas precisión al peso.</p>
-          </details>
-        </div>
-      </section>
+      </div>
 
     </div>
 
@@ -1492,6 +1534,44 @@
   segmentado("segRegProp", function (v) { S.regProp = v; render(); });
 
   render();
+})();
+</script>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll("#pasos [role=tab]");
+  var LLAVE = "simulador-renta-paso";
+
+  function ir(n, enfocar) {
+    tabs.forEach(function (t, i) {
+      var activo = i + 1 === n;
+      t.setAttribute("aria-selected", activo ? "true" : "false");
+      t.tabIndex = activo ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !activo;
+    });
+    try { localStorage.setItem(LLAVE, String(n)); } catch (e) {}
+    if (enfocar) {
+      tabs[n - 1].focus();
+      // En celular las etapas quedan arriba de los resultados: volver al inicio de la etapa.
+      var caja = document.getElementById("pasos").getBoundingClientRect();
+      if (caja.top < 0) document.getElementById("pasos").scrollIntoView({ block: "start" });
+    }
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { ir(i + 1, true); });
+    t.addEventListener("keydown", function (e) {
+      var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (d) { e.preventDefault(); ir((i + d + tabs.length) % tabs.length + 1, true); }
+    });
+  });
+  document.querySelectorAll(".siguiente").forEach(function (b) {
+    b.addEventListener("click", function () { ir(Number(b.getAttribute("data-ir")), true); });
+  });
+
+  var guardado = null;
+  try { guardado = Number(localStorage.getItem(LLAVE)); } catch (e) {}
+  ir(guardado >= 1 && guardado <= 3 ? guardado : 1, false);
 })();
 </script>
 
