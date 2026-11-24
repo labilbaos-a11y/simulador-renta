@@ -418,6 +418,16 @@
   .resumen-acc .siguiente { width: auto; padding: 9px 16px; }
   .resumen-acc .ok { font-size: 12px; color: var(--teal); }
   .resumen-acc .siguiente.sec { background: transparent; color: var(--teal); }
+  .opciones { display: flex; flex-direction: column; gap: 8px; }
+  .op-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+  .op-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; border-radius: 999px;
+    background: var(--teal-soft); color: var(--ink); font-size: 12px; font-family: var(--mono);
+  }
+  .op-chip b { font-family: var(--sans); color: var(--teal); }
+  .op-x { appearance: none; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
+  .op-x:hover { color: var(--clay); }
+  .op-borrar { appearance: none; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 12px; text-decoration: underline; }
 
   /* ---------- presentación para PDF: solo existe al imprimir ----------
      Páginas horizontales, una idea por página, siempre en tema claro. */
@@ -467,6 +477,10 @@
     #informe .graf .eje { font-size: 15px; }
     #informe .graf .lbl-prop { font-size: 16px; }
     #informe .nw { white-space: nowrap; }
+    #informe .p-comp td { padding: 2mm 0; }
+    #informe .p-op .graf svg { max-height: 68mm; }
+    #informe .p-comp .op-col { color: var(--teal); font-family: var(--sans); font-weight: 650; text-transform: none; letter-spacing: 0; font-size: 11pt; }
+    #informe .p-sub { display: block; font-family: var(--sans); font-size: 8.5pt; color: var(--ink-3); }
     #informe .leyenda { font-size: 10pt; margin-bottom: 2mm; }
     #informe .p-pie { position: absolute; left: 22mm; right: 22mm; bottom: 9mm; font-size: 8.5pt; color: var(--ink-3); border-top: 1px solid var(--line-soft); padding-top: 2.5mm; }
   }
@@ -1949,8 +1963,8 @@
     var esc = function (t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
     var tile = function (k, v, d) { return '<div class="p-tile"><span class="k">' + k + '</span><span class="v">' + v + '</span>' + (d ? '<span class="d">' + d + '</span>' : "") + '</div>'; };
     var pie = '<footer class="p-pie">Propuesta APV' + (el.nombreCli.value.trim() ? " · " + esc(el.nombreCli.value.trim()) : "") + ' · ' + fechaHoy + ' · Estimación referencial en pesos de hoy</footer>';
-    var pagina = function (eyebrow, titulo, cuerpo) {
-      return '<section class="p-pag"><div class="p-eyebrow">' + eyebrow + '</div><h2>' + titulo + '</h2>' + cuerpo + pie + '</section>';
+    var pagina = function (eyebrow, titulo, cuerpo, clase) {
+      return '<section class="p-pag' + (clase ? " " + clase : "") + '"><div class="p-eyebrow">' + eyebrow + '</div><h2>' + titulo + '</h2>' + cuerpo + pie + '</section>';
     };
     var I = "";
     var tuyaP = afp[0];
@@ -2015,8 +2029,37 @@
     document.getElementById("informe").innerHTML = I;
     INFORME_TITULO = "Propuesta APV " + (nombre ? nombre + " " : "") + fechaHoy;
 
-    el.hdResumen.textContent = "para copiar y pegar";
-    el.bdResumen.innerHTML =
+    // Foto de la propuesta actual, para guardarla como opción.
+    ACTUAL = {
+      total: B.apvTotal, ahorro: B.aporte, seguro: B.seguroDentro, esporadico: B.esporadico,
+      ganaB: ganaB, rebajaMes: rebajaMes, ahorroB: ahorroB, bonoA: bonoA,
+      costoReal: ganaB ? B.apvTotal - rebajaMes : B.apvTotal,
+      perfil: mB.perfil, mezcla: mB.mezcla.map(function (m) { var c = {}; for (var k in m) c[k] = m[k]; c.base = base(m); return c; }),
+      proyectado: proyectado, rEq: rEq, aportado: aportado, afp: afp, costo: costo,
+      n: n, ed: ed, plazo: plazo, tramoTxt: tramoTxt
+    };
+    var multi = OPCIONES.length >= 2;
+    if (multi) {
+      texto = textoOpciones(capUf, cober, p);
+      document.getElementById("informe").innerHTML = pdfOpciones(capUf, cober, p, fechaHoy, nombre, esc, tile, pagina, pie);
+    }
+    var barra = '<div class="opciones">' +
+      '<span class="lbl">Opciones guardadas ' + OPCIONES.length + '/' + MAX_OPCIONES + '</span>' +
+      (OPCIONES.length ? '<div class="op-lista">' + OPCIONES.map(function (o, i) {
+        return '<span class="op-chip"><b>Opción ' + (i + 1) + '</b> ' + $(o.total) + ' · ' + PERFIL_SING[o.perfil] + ' · ' + mm(o.proyectado) +
+          '<button type="button" class="op-x" data-quitar="' + i + '" aria-label="Quitar opción ' + (i + 1) + '">×</button></span>';
+      }).join("") + '</div>' : "") +
+      '<div class="resumen-acc">' +
+        (OPCIONES.length < MAX_OPCIONES ? '<button type="button" class="siguiente sec" id="btnGuardarOp">Guardar esta propuesta como opción ' + (OPCIONES.length + 1) + '</button>' : "") +
+        (OPCIONES.length ? '<button type="button" class="op-borrar" id="btnBorrarOps">Borrar todas</button>' : "") +
+      '</div>' +
+      '<p class="note">' + (multi
+        ? "El texto y el PDF comparan las " + OPCIONES.length + " opciones guardadas. Para volver a una sola propuesta, borra las opciones."
+        : "Guarda 2 o 3 propuestas distintas (otro monto, otros fondos) y el texto y el PDF las compararán lado a lado.") + '</p>' +
+      '</div><div class="divider"></div>';
+
+    el.hdResumen.textContent = multi ? "comparando " + OPCIONES.length + " opciones" : "para copiar y pegar";
+    el.bdResumen.innerHTML = barra +
       '<textarea class="resumen-txt" id="resumenTxt" readonly aria-label="Resumen del APV">' + texto.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</textarea>' +
       '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button>' +
         '<button type="button" class="siguiente sec" id="btnPdf">Descargar PDF</button><span class="ok" id="copiado"></span></div>' +
@@ -2025,6 +2068,12 @@
       grafico(mB, afp, n, costo, ed) ;
     el.bdResumen.querySelector("#btnCopiar").addEventListener("click", copiarResumen);
     el.bdResumen.querySelector("#btnPdf").addEventListener("click", descargarPdf);
+    var bG = el.bdResumen.querySelector("#btnGuardarOp"), bB = el.bdResumen.querySelector("#btnBorrarOps");
+    if (bG) bG.addEventListener("click", function () { if (ACTUAL && OPCIONES.length < MAX_OPCIONES) { OPCIONES.push(ACTUAL); render(); } });
+    if (bB) bB.addEventListener("click", function () { OPCIONES = []; render(); });
+    el.bdResumen.querySelectorAll("[data-quitar]").forEach(function (b) {
+      b.addEventListener("click", function () { OPCIONES.splice(Number(b.getAttribute("data-quitar")), 1); render(); });
+    });
     // La caja crece con el texto: el resumen se lee entero, sin scroll interno.
     var caja = el.bdResumen.querySelector("#resumenTxt");
     caja.style.height = "auto";
@@ -2033,6 +2082,95 @@
   }
 
   var INFORME_TITULO = "Propuesta APV";
+
+  /* ---------------- Varias opciones ----------------
+     Cada opción es una foto de la propuesta (monto, fondos, resultados). Se comparan entre
+     sí para el mismo cliente; si cambian la edad o la fecha de retiro, conviene borrarlas. */
+  var MAX_OPCIONES = 3, OPCIONES = [], ACTUAL = null;
+
+  function textoOpciones(capUf, cober, p) {
+    var o0 = OPCIONES[0], L = [];
+    L.push("PROPUESTA DE AHORRO APV — " + OPCIONES.length + " OPCIONES");
+    L.push("");
+    L.push("Jubilación a los " + o0.ed.retiro + " (" + o0.plazo + " de ahorro). Tramo de impuesto aproximado: " + o0.tramoTxt + ".");
+    L.push("Montos en pesos de hoy.");
+    OPCIONES.forEach(function (o, i) {
+      L.push("");
+      L.push("OPCIÓN " + (i + 1) + " — " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil]);
+      if (o.seguro > 0) L.push("· " + $(o.ahorro) + " se ahorra y " + $(o.seguro) + " es la prima del seguro de vida (no se acumula)");
+      L.push(o.ganaB
+        ? "· Pagas " + $(o.rebajaMes) + " menos de impuesto al mes (régimen B): te cuesta " + $(o.costoReal) + " al mes"
+        : "· El Estado agrega " + $(o.bonoA) + " al año a tu fondo (régimen A)");
+      o.mezcla.forEach(function (m) { L.push("· " + Math.round(m.peso * 100) + "% " + m.nom + ": " + m.base); });
+      L.push("· Saldo proyectado: " + mm(o.proyectado) + " (rinde en promedio " + pct(o.rEq, 2) + " real al año), pensión de unos " + $(pensionMes(o.proyectado)) + " al mes por " + PENSION_ANIOS + " años");
+      L.push("· Con el mismo aporte en " + o.afp[0].f.nom + ": " + mm(o.afp[0].saldo));
+    });
+    L.push("");
+    if (capUf > 0 || cober) {
+      L.push("Seguro de vida: prima de " + String(dec(el.seguroApv)).replace(".", ",") + " UF al mes" +
+        (capUf > 0 ? ", capital asegurado de " + nf.format(capUf) + " UF (" + mm(capUf * p.uf) + " hoy)." : "."));
+      if (cober) L.push(cober);
+      L.push("");
+    }
+    L.push("Importante: son rentabilidades pasadas, no garantizadas (salvo los fondos garantizados). Los fondos agresivos pueden tener años con pérdidas importantes; la proyección muestra un promedio, no un resultado seguro. AFP: promedio de los últimos 5 años (" +
+      fechaCorta(AFP_DATOS.desde) + " a " + fechaCorta(AFP_DATOS.hasta) + "), después de la comisión de APV.");
+    return L.join("\n");
+  }
+
+  function pdfOpciones(capUf, cober, p, fechaHoy, nombre, esc, tile, pagina, pie) {
+    var o0 = OPCIONES[0], I = "";
+    var cols = OPCIONES.map(function (o, i) { return '<td class="n op-col">Opción ' + (i + 1) + '</td>'; }).join("");
+    var fila = function (k, f, cls) {
+      return '<tr' + (cls ? ' class="' + cls + '"' : "") + '><td>' + k + '</td>' + OPCIONES.map(function (o) { return '<td class="n">' + f(o) + '</td>'; }).join("") + '</tr>';
+    };
+    // 1. Portada
+    I += '<section class="p-pag p-portada"><div class="p-eyebrow">Propuesta de ahorro previsional voluntario</div>' +
+      (nombre ? '<div class="p-cliente">Preparada para ' + esc(nombre) + '</div>' : "") +
+      '<h1>' + OPCIONES.length + ' opciones de ahorro<br>para tu jubilación</h1>' +
+      '<div class="p-meta">' + fechaHoy + ' · ' + o0.ed.cumplida + ' años hoy · jubilación a los ' + o0.ed.retiro + ' · ' + o0.plazo + ' de ahorro · tramo de impuesto ' + o0.tramoTxt + '</div>' +
+      '<div class="p-tiles">' + OPCIONES.map(function (o, i) {
+        return tile("Opción " + (i + 1), $(o.total), "al mes · podrías juntar " + mm(o.proyectado));
+      }).join("") + '</div>' + pie + '</section>';
+    // 2. Comparación
+    I += pagina("Compara tus opciones", "Lado a lado",
+      '<table class="p-t p-comp"><tr class="hd"><td></td>' + cols + '</tr>' +
+      fila("Aporte mensual", function (o) { return $(o.total); }) +
+      fila("Ahorro que se acumula", function (o) { return $(o.ahorro); }) +
+      (OPCIONES.some(function (o) { return o.ganaB; }) ? fila("Menos impuesto al mes", function (o) { return o.ganaB ? $(o.rebajaMes) : "—"; }) : "") +
+      (OPCIONES.some(function (o) { return !o.ganaB; }) ? fila("Bono del Estado al año", function (o) { return o.ganaB ? "—" : $(o.bonoA); }) : "") +
+      fila("<b>Costo real al mes</b>", function (o) { return "<b>" + $(o.costoReal) + "</b>"; }, "tot") +
+      fila("Perfil", function (o) { return PERFIL_SING[o.perfil]; }) +
+      fila("Rentabilidad promedio", function (o) { return pct(o.rEq, 2) + " real"; }) +
+      fila("<b>Saldo a los " + o0.ed.retiro + "</b>", function (o) { return "<b>" + mm(o.proyectado) + "</b>"; }, "tot") +
+      fila("Pensión aproximada al mes", function (o) { return $(pensionMes(o.proyectado)); }) +
+      fila("Mismo aporte en la AFP", function (o) { return mm(o.afp[0].saldo) + '<small class="p-sub">' + esc(o.afp[0].f.nom) + '</small>'; }) +
+      '</table><p class="p-txt">Pensión aproximada: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real. AFP: mismo perfil de riesgo, promedio de los últimos 5 años, después de la comisión de APV.</p>');
+    // 3. Una página por opción
+    OPCIONES.forEach(function (o, i) {
+      I += pagina("Opción " + (i + 1) + " · " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil], "Podrías juntar " + mm(o.proyectado),
+        '<table class="p-t"><tr class="hd"><td>Fondo</td><td class="n">%</td><td>Rentabilidad real y período</td></tr>' +
+        o.mezcla.map(function (m) {
+          return '<tr><td>' + esc(m.nom) + '</td><td class="n">' + Math.round(m.peso * 100) + '%</td><td class="b">' + esc(m.base) + '</td></tr>';
+        }).join("") + '</table>' +
+        grafico({ mezcla: o.mezcla }, o.afp, o.n, o.costo, o.ed, 900, { aporte: o.ahorro, esporadico: o.esporadico }), "p-op");
+    });
+    // 4. Seguro
+    if (o0.seguro > 0) {
+      I += pagina("Protección", "Tu seguro de vida",
+        '<div class="p-tiles">' +
+          tile("Prima", String(dec(el.seguroApv)).replace(".", ",") + " UF", $(o0.seguro) + " al mes, incluida en cada opción") +
+          (capUf > 0 ? tile("Capital asegurado", nf.format(capUf) + " UF", mm(capUf * p.uf) + " al valor de hoy") : "") +
+        '</div>' + (cober ? '<div class="p-cober">' + esc(cober).replace(/\n/g, "<br>") + '</div>' : ""));
+    }
+    // 5. Importante
+    var hayAgr = OPCIONES.some(function (o) { return o.perfil === 2; });
+    I += pagina("Antes de decidir", "Importante",
+      '<ul class="p-lista"><li>Las proyecciones usan <b>rentabilidades pasadas</b>, ya descontada la inflación, y suponen que se repiten. No son una garantía, salvo la tasa contractual de los fondos garantizados.</li>' +
+      '<li>' + (hayAgr ? 'Los fondos agresivos pueden tener años con <b>pérdidas importantes</b>' : 'Todos los fondos pueden tener <b>años negativos</b>') + '; la proyección muestra un promedio.</li>' +
+      '<li>Los montos están en <b>pesos de hoy</b>. La pensión es una referencia, no una cotización de renta vitalicia.</li>' +
+      '<li>Estimación referencial. Para decisiones tributarias, valídala con un contador.</li></ul>');
+    return I;
+  }
   /* El PDF sale de la ventana de impresión del navegador ("Guardar como PDF"): sin librerías,
      y con texto real. El título del documento pasa a ser el nombre sugerido del archivo. */
   function descargarPdf() {
@@ -2053,8 +2191,8 @@
 
   /* Gráfico de líneas en SVG, sin librerías: una sola escala, saldo en millones. */
   var GRAF = null;
-  function grafico(mB, afp, n, costo, ed, anchoFijo) {
-    var B = ultimoB;
+  function grafico(mB, afp, n, costo, ed, anchoFijo, Bx) {
+    var B = Bx || ultimoB;
     var series = [{ nom: "Propuesta", cls: "prop", pts: saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico) }];
     afp.forEach(function (x, i) {
       series.push({ nom: x.f.nom.replace(/^Promedio sistema — /, "Promedio sistema Fondo "), op: GRIS_AFP[i * 3],
