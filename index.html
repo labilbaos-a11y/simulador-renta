@@ -406,7 +406,7 @@
 
   /* ---------- resumen final: texto para copiar y gráfico ---------- */
   .resumen-txt {
-    width: 100%; min-height: 220px; resize: vertical; font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    width: 100%; min-height: 220px; resize: none; overflow: hidden; font-family: var(--mono); font-size: 12px; line-height: 1.55;
     color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
   }
   .resumen-acc { display: flex; gap: 10px; align-items: center; }
@@ -1235,7 +1235,7 @@
     var m = [];
     var item = function (f, peso) {
       return { id: f.id, nom: f.nom, tasa: tasaDe(f), peso: peso, tramo: f.tramo,
-               contractual: f.hist === false, completo: f.per === "fm" || f.per === "apv", per: f.per };
+               contractual: f.hist === false, per: f.per };
     };
     if (pct > 0) m.push(item(fa, pct / 100));
     if (pct < 100) m.push(item(fb, (100 - pct) / 100));
@@ -1251,18 +1251,21 @@
       var crudo = document.getElementById("apvTasa" + i).value;
       if (!f.tramo && crudo === "") sinTasa = true;
       total += p;
-      m.push({ id: "apv" + i, nom: f.nom, tasa: f.tramo ? 0 : dec(document.getElementById("apvTasa" + i)), peso: p,
-               tramo: f.tramo, contractual: !!f.contractual, completo: true, per: f.ref ? "fm" : "apv" });
+      m.push({ id: "apv" + i, nom: f.nom, apv: f, vol: f.vol, tasa: f.tramo ? 0 : dec(document.getElementById("apvTasa" + i)), peso: p,
+               tramo: f.tramo, contractual: !!f.contractual, per: f.ref ? "fm" : "apv" });
     });
     m.forEach(function (x) { x.peso = x.peso / total; });
-    return { mezcla: m, total: total, sinTasa: sinTasa, pct: m.length === 1 ? 100 : 0 };
+    // Perfil de la mezcla: volatilidad promedio ponderada, con los mismos cortes de la distribución.
+    var vol = m.reduce(function (acc, x) { return acc + x.vol * x.peso; }, 0);
+    return { mezcla: m, total: total, sinTasa: sinTasa, pct: m.length === 1 ? 100 : 0,
+             perfil: m.length ? perfilDe({ vol: vol }) : null };
   }
 
   // Etiqueta legible de la mezcla: "50% PB Agresivo + 50% Garantizado"
   function etiquetaMezcla(x) {
     return x.mezcla.map(function (m) {
-      // En los fondos mutuos la administradora sí distingue: hay un "Agresivo" de Itaú y otro de Santander.
-      return Math.round(m.peso * 100) + "% " + (m.completo ? m.nom : m.nom.replace(/^(Cuprum |Santander |MetLife |Promedio sistema — )/, ""));
+      // Siempre con la administradora: hay un "Fondo A" en cada AFP y un "Agresivo" en Itaú y en Santander.
+      return Math.round(m.peso * 100) + "% " + m.nom;
     }).join(" + ");
   }
 
@@ -1691,7 +1694,6 @@
       return;
     }
     var n = ed.aniosRestantes;
-    el.hdAfp.textContent = "mismo aporte, a los " + ed.retiro;
     var periodoAfp = "Rentabilidad AFP: " + AFP_PERIODO + " (Superintendencia de Pensiones), real con UF. ";
     var mB = leerProp();
     if (!mB.mezcla.length) {
@@ -1704,20 +1706,21 @@
     var h = '<thead><tr><th></th><th>Saldo al retiro</th><th>Pensión / mes</th><th>vs propuesta</th></tr></thead><tbody>';
     h += '<tr class="total"><td>Propuesta<small class="afp-tasa">' + etiquetaMezcla(mB) + '</small></td>' +
       '<td class="n">' + $(prop) + '</td><td class="n">' + $(pensionMes(prop)) + '</td><td class="n">—</td></tr>';
-    // Los cinco fondos de la AFP del titular y, de referencia, el promedio del sistema.
-    var suAfp = ((el.afp.options[el.afp.selectedIndex] || {}).text || "").split(" ")[0].toUpperCase();
-    FONDOS.forEach(function (f) {
-      if (f.afp !== suAfp && f.afp !== "SISTEMA") return;
-      var saldo = acumular(B.aporte, [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total;
+    var eq = equivalentesAfp(mB.perfil, B, n);
+    el.hdAfp.textContent = "perfil " + PERFIL_SING[mB.perfil] + " → Fondo " + FONDO_EQUIV[mB.perfil];
+    eq.forEach(function (x) {
+      var f = x.f, saldo = x.saldo;
       var dif = prop - saldo;
-      var tuya = f.afp === suAfp;
+      var tuya = f.afp !== "SISTEMA";
       h += '<tr class="rule' + (tuya ? " tuya" : "") + '"><td class="sub">' + f.nom +
         '<small class="afp-tasa">' + pct(tasaNeta(f) / 100, 2) + ' real</small></td>' +
         '<td class="n">' + $(saldo) + '</td><td class="n">' + $(pensionMes(saldo)) + '</td>' +
         '<td class="n ' + (dif >= 0 ? "posv" : "neg") + '">' + (dif >= 0 ? "+" : "−") + $(Math.abs(dif)) + '</td></tr>';
     });
     el.tablaAfp.innerHTML = h + "</tbody>";
-    el.notaAfp.innerHTML = '<p class="note">' + periodoAfp + 'Mismo aporte mensual (' + $(B.aporte) + ') y mismos años en cada alternativa. ' +
+    el.notaAfp.innerHTML = '<p class="note">La propuesta es de perfil <b>' + PERFIL_SING[mB.perfil] + '</b> (volatilidad promedio de su mezcla), ' +
+      'así que se compara con el <b>Fondo ' + FONDO_EQUIV[mB.perfil] + '</b> de la AFP: agresivo con A, moderado con C, conservador con E. ' +
+      periodoAfp + 'Mismo aporte mensual (' + $(B.aporte) + ') y mismos años en cada alternativa. ' +
       'La columna «vs propuesta» es cuánto más (verde) o menos (rojo) junta la propuesta que ese fondo. ' +
       'Los fondos de AFP van netos de la comisión de APV (0,6% anual); la propuesta, del costo del producto. ' +
       'Pensión: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real, en pesos de hoy.</p>';
@@ -1727,12 +1730,38 @@
      Texto para pegar en un correo o WhatsApp y un gráfico del saldo año a año: la
      propuesta contra los cinco fondos de la AFP del titular, con el mismo aporte. */
   var ultimoB = null;
+  /* Se compara perfil con perfil: agresivo contra Fondo A, moderado contra C, conservador contra E. */
+  var FONDO_EQUIV = ["E", "C", "A"];
+  var PERFIL_SING = ["conservador", "moderado", "agresivo"];
+  function suAfp() {
+    var a = ((el.afp.options[el.afp.selectedIndex] || {}).text || "").split(" ")[0].toUpperCase();
+    return AFP_NOMBRES[a] ? a : "SISTEMA";
+  }
+  // El fondo equivalente de la AFP del titular y del promedio del sistema, con su saldo al retiro.
+  function equivalentesAfp(perfil, B, n, extraMes) {
+    var t = FONDO_EQUIV[perfil], afps = suAfp() === "SISTEMA" ? ["SISTEMA"] : [suAfp(), "SISTEMA"];
+    return afps.map(function (a) {
+      var f = buscarFondo(a + "-" + t);
+      return { f: f, saldo: acumular(B.aporte + (extraMes || 0), [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total };
+    });
+  }
   var GRIS_AFP = [1, .82, .66, .52, .4];   // opacidad del gris: A el más marcado, E el más suave
 
   function saldoPorAnio(aporte, mezcla, costo, n, esporadico) {
     var pts = [], tope = Math.ceil(n);
     for (var k = 0; k <= tope; k++) pts.push(acumular(aporte, mezcla, costo, Math.min(k, n), esporadico).total);
     return pts;
+  }
+  /* La tasa anual única que, con los mismos aportes, llega al mismo saldo. Sirve para decir
+     "equivale a X% al año" aunque la mezcla cambie de tasa (garantizado) o tenga costo. */
+  function tasaEquivalente(aporte, n, esporadico, saldo) {
+    var lo = -0.5, hi = 0.5;
+    for (var k = 0; k < 50; k++) {
+      var mid = (lo + hi) / 2;
+      var s = acumular(aporte, [{ tasa: mid * 100, peso: 1 }], 0, n, esporadico).total;
+      if (s < saldo) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
   }
   function mm(v) { return "$" + (v / 1e6).toFixed(1).replace(".", ",") + " MM"; }
 
@@ -1756,58 +1785,60 @@
     var ganaB = ahorroB >= bonoA;
     var saldo = acumular(B.aporte, mB.mezcla, costo, n, B.esporadico).total;
     var saldoA = acumular(B.aporte + bonoA / 12, mB.mezcla, costo, n, B.esporadico).total;
-    var largoB = saldo + ahorroB * n;
 
-    var suAfp = ((el.afp.options[el.afp.selectedIndex] || {}).text || "").split(" ")[0].toUpperCase();
-    if (!AFP_NOMBRES[suAfp]) suAfp = "SISTEMA";
-    var afp = FONDOS.filter(function (f) { return f.afp === suAfp; }).map(function (f) {
-      return { f: f, saldo: acumular(B.aporte, [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total };
-    });
-    var r0 = tasaMezcla(mB.mezcla, 0), r5 = tasaMezcla(mB.mezcla, 10);
-    var hoy = new Date();
+    // En el régimen A el bono del Estado entra al fondo, también si el ahorro estuviera en la AFP.
+    var afp = equivalentesAfp(mB.perfil, B, n, ganaB ? 0 : bonoA / 12);
+    var proyectado = ganaB ? saldo : saldoA;
+    var rEq = tasaEquivalente(B.aporte, n, B.esporadico, saldo);
+    var mesesN = Math.round(n * 12), aniosN = Math.floor(mesesN / 12), mesesR = mesesN % 12;
+    var aportado = B.aporte * mesesN + B.esporadico * aniosN;
+    var plazo = aniosN + " años" + (mesesR ? " y " + mesesR + (mesesR === 1 ? " mes" : " meses") : "");
+
+    // De dónde sale la rentabilidad de cada fondo, dicho en simple.
+    function base(m) {
+      var f = m.apv;
+      if (f.tramo) return pct(f.tramo.alta, 1) + " real garantizado hasta " + fechaCorta(f.tramo.corte + "-01-01") + ", luego " + pct(f.tramo.baja, 1);
+      if (f.contractual) return pct(m.tasa / 100, 1) + " real garantizado";
+      var t = pct(m.tasa / 100, 2) + " real al año";
+      if (f.grp) return t + ", promedio 2023–2025 en dólares";
+      if (f.nota === "3 años") return t + ", promedio de los últimos 3 años (nov-2023 a nov-2026)";
+      if (f.ref) return t + ", promedio de los últimos 5 años (nov-2021 a nov-2026)";
+      return t + ", tasa ingresada por el asesor";
+    }
 
     // ----- Texto -----
     var L = [];
-    L.push("RESUMEN APV — " + String(hoy.getDate()).padStart(2, "0") + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + hoy.getFullYear());
+    L.push("PROPUESTA DE AHORRO APV");
     L.push("");
-    L.push("Edad: " + ed.cumplida + " años · se pensiona a los " + ed.retiro + " (" + n.toFixed(1).replace(".", ",") + " años de ahorro)");
-    L.push("Sueldo bruto: " + $(B.m.bruto) + " · tramo marginal " + TABLA[B.m.tramo].etq);
-    L.push("Aporte mensual APV: " + $(B.apvTotal) + (B.seguroDentro > 0 ? " (ahorro " + $(B.aporte) + " + seguro " + $(B.seguroDentro) + ")" : ""));
-    L.push("");
-    L.push("RÉGIMEN RECOMENDADO: " + (ganaB ? "B — rebaja de impuesto" : "A — bono del Estado 15%"));
+    L.push("Tu aporte: " + $(B.apvTotal) + " al mes" +
+      (B.seguroDentro > 0 ? ". De eso, " + $(B.aporte) + " se ahorra y " + $(B.seguroDentro) + " es la prima de tu seguro de vida (no se acumula)." : "."));
     if (ganaB) {
-      L.push("· Rebaja de impuesto: " + $(rebajaMes) + " al mes (" + $(ahorroB) + " al año)");
-      L.push("· Costo real del aporte: " + $(B.apvTotal - rebajaMes) + " al mes");
+      L.push("Beneficio tributario (régimen B): pagas " + $(rebajaMes) + " menos de impuesto al mes (" + $(ahorroB) + " al año). " +
+        "El costo real para ti es " + $(B.apvTotal - rebajaMes) + " al mes.");
     } else {
-      L.push("· Bono del Estado: " + $(bonoA) + " al año, directo al fondo (tope 6 UTM)");
-      L.push("· La alternativa B rebajaría " + $(ahorroB) + " de impuesto al año");
-    }
-    var otroLargo = ganaB ? saldoA - largoB : largoB - saldoA;
-    if (otroLargo > 0) {
-      L.push("· Ojo: a " + Math.round(n) + " años el régimen " + (ganaB ? "A" : "B") + " junta " + mm(otroLargo) + " más" +
-        (ganaB ? ", porque el bono capitaliza; el B lo supera solo si se reinvierte el ahorro de impuesto." : "."));
+      L.push("Beneficio tributario (régimen A): el Estado agrega " + $(bonoA) + " al año a tu fondo (15% de lo que ahorras, con tope de 6 UTM).");
     }
     L.push("");
-    L.push("DISTRIBUCIÓN");
-    mB.mezcla.forEach(function (m) {
-      L.push("· " + Math.round(m.peso * 100) + "% " + m.nom + " — " + (m.tramo ? etiquetaTramo(m.tramo) : pct(m.tasa / 100, 2)) + " real");
-    });
-    L.push("Rentabilidad real de la mezcla: " + pct(r0, 2) + (Math.abs(r0 - r5) > 1e-9 ? " (luego " + pct(r5, 2) + ")" : "") +
-      (costo > 0 ? ", antes del costo del producto de " + pct(costo / 100, 1) : ""));
+    L.push("Dónde se invierte (perfil " + PERFIL_SING[mB.perfil] + "):");
+    mB.mezcla.forEach(function (m) { L.push("· " + Math.round(m.peso * 100) + "% " + m.nom + ": " + base(m)); });
     L.push("");
-    L.push("PROYECCIÓN A LOS " + ed.retiro + " (en pesos de hoy)");
-    L.push("· Saldo estimado: " + mm(saldo) + (ganaB ? "" : " (" + mm(saldoA) + " con el bono del A)"));
-    L.push("· Pensión aproximada: " + $(pensionMes(ganaB ? saldo : saldoA)) + " al mes por " + PENSION_ANIOS + " años");
+    L.push("Proyección a tus " + ed.retiro + " años (" + plazo + " de ahorro), en pesos de hoy:");
+    L.push("· Habrás aportado " + mm(aportado) + (ganaB ? "" : " y el Estado " + mm(bonoA * n)));
+    L.push("· Saldo proyectado: " + mm(proyectado) + ", si la mezcla rinde en promedio " + pct(rEq, 2) + " real al año" +
+      (costo > 0 ? " (ya descontado el costo del producto)" : ""));
+    L.push("· Eso equivale a una pensión de unos " + $(pensionMes(proyectado)) + " al mes durante " + PENSION_ANIOS + " años");
     L.push("");
-    L.push("COMPARATIVO CON AFP " + AFP_NOMBRES[suAfp].toUpperCase() + " (mismo aporte)");
-    afp.forEach(function (x) {
-      var dif = saldo - x.saldo;
-      L.push("· " + x.f.nom.replace(/^Promedio sistema — /, "Sistema ") + " (" + pct(tasaNeta(x.f) / 100, 2) + "): " + mm(x.saldo) +
-        " → propuesta " + (dif >= 0 ? "+" : "−") + mm(Math.abs(dif)));
-    });
+    var tuya = afp[0];
+    L.push("Comparado con " + (tuya.f.afp === "SISTEMA" ? "el promedio de las AFP" : "tu AFP " + AFP_NOMBRES[tuya.f.afp]) +
+      " en el Fondo " + FONDO_EQUIV[mB.perfil] + " (mismo perfil y mismo aporte):");
+    L.push("· Rentabilidad: " + pct(tasaNeta(tuya.f) / 100, 2) + " real al año, promedio de los últimos 5 años (" +
+      fechaCorta(AFP_DATOS.desde) + " a " + fechaCorta(AFP_DATOS.hasta) + "), después de la comisión de APV");
+    L.push("· Saldo proyectado: " + mm(tuya.saldo) + ". Diferencia a favor de " +
+      (proyectado >= tuya.saldo ? "la propuesta: " + mm(proyectado - tuya.saldo) : "la AFP: " + mm(tuya.saldo - proyectado)));
     L.push("");
-    L.push("Supuestos: rentabilidades reales pasadas (AFP: " + AFP_PERIODO + "; fondos mutuos: 5 años a nov-2026). " +
-      "No garantizan rentabilidad futura, salvo la tasa contractual de los fondos garantizados. Estimación referencial.");
+    L.push("Importante: son rentabilidades pasadas, no garantizadas (salvo los fondos garantizados). " +
+      "Un fondo " + PERFIL_SING[mB.perfil] + (mB.perfil === 2 ? " puede tener años con pérdidas importantes" : " también puede tener años negativos") +
+      "; la proyección muestra un promedio, no un resultado seguro. Los montos están en pesos de hoy, sin inflación.");
     var texto = L.join("\n");
 
     el.hdResumen.textContent = "para copiar y pegar";
@@ -1815,9 +1846,13 @@
       '<textarea class="resumen-txt" id="resumenTxt" readonly aria-label="Resumen del APV">' + texto.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</textarea>' +
       '<div class="resumen-acc"><button type="button" class="siguiente" id="btnCopiar">Copiar resumen</button><span class="ok" id="copiado"></span></div>' +
       '<div class="divider"></div>' +
-      '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs AFP ' + AFP_NOMBRES[suAfp] + '</span>' +
+      '<span class="lbl">Saldo año a año, en millones de pesos — propuesta vs Fondo ' + FONDO_EQUIV[mB.perfil] + '</span>' +
       grafico(mB, afp, n, costo, ed) ;
     el.bdResumen.querySelector("#btnCopiar").addEventListener("click", copiarResumen);
+    // La caja crece con el texto: el resumen se lee entero, sin scroll interno.
+    var caja = el.bdResumen.querySelector("#resumenTxt");
+    caja.style.height = "auto";
+    caja.style.height = (caja.scrollHeight + 2) + "px";
     activarGrafico();
   }
 
@@ -1835,7 +1870,7 @@
     var B = ultimoB;
     var series = [{ nom: "Propuesta", cls: "prop", pts: saldoPorAnio(B.aporte, mB.mezcla, costo, n, B.esporadico) }];
     afp.forEach(function (x, i) {
-      series.push({ nom: x.f.nom.replace(/^Promedio sistema — /, "Sistema "), op: GRIS_AFP[i],
+      series.push({ nom: x.f.nom.replace(/^Promedio sistema — /, "Promedio sistema Fondo "), op: GRIS_AFP[i * 3],
                     pts: saldoPorAnio(B.aporte, [{ id: x.f.id, tasa: tasaNeta(x.f), peso: 1 }], 0, n, B.esporadico) });
     });
     // Se dibuja al ancho real de la tarjeta para que el texto de los ejes no se achique en celular.
