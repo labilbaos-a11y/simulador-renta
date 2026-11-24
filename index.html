@@ -375,6 +375,18 @@
   .comp tr.glosa td.n { white-space: normal; font-family: var(--sans); }
   /* Igual para las filas cuyo valor es un nombre y no un monto. */
   .comp tr.txt td.n { white-space: normal; }
+  .comp.afp td:first-child { white-space: normal; }
+  .comp.afp .afp-tasa { display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 400; }
+  .comp.afp tr.tuya td:first-child { font-weight: 650; color: var(--ink); }
+  /* En celular no caben cuatro columnas: el fondo va arriba y los tres montos debajo. */
+  @media (max-width: 560px) {
+    .comp.afp tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 8px; }
+    .comp.afp th:first-child { display: none; }
+    .comp.afp th { white-space: normal; }
+    .comp.afp td:first-child { grid-column: 1 / -1; padding: 8px 0 2px; }
+    .comp.afp th:not(:first-child), .comp.afp td:not(:first-child) { padding-left: 0; }
+    .comp.afp tr.rule > td.n, .comp.afp tr.total > td.n { border-top: 0; padding-top: 0; }
+  }
 
   /* Segmentado a lo ancho: el régimen se elige mal si los botones dicen solo "A" y "B". */
   .seg.ancho { width: 100%; }
@@ -395,19 +407,26 @@
   /* ---------- distribución de la propuesta: los fondos que ofrece el APV ---------- */
   .dist { display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
   .dist-hd, .dist-row {
-    display: grid; grid-template-columns: minmax(0, 1fr) 62px 62px; gap: 8px; align-items: center;
+    display: grid; grid-template-columns: minmax(0, 1fr) 76px 56px; gap: 8px; align-items: center;
   }
+  /* Sin las flechas del campo numérico: le roban ancho y cortan tasas como "−10,43". */
+  .dist-row input { -moz-appearance: textfield; appearance: textfield; }
+  .dist-row input::-webkit-inner-spin-button, .dist-row input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .dist-hd { padding: 7px 0 5px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 650; }
   .dist-hd span:not(:first-child) { text-align: right; }
   .dist-grp {
     padding: 10px 0 4px; font-size: 11px; font-weight: 650; color: var(--ink-2);
     border-top: 1px solid var(--line-soft);
   }
-  .dist-grp small { display: block; font-weight: 400; color: var(--clay); font-size: 10.5px; margin-top: 1px; }
+  .dist-grp small { font-weight: 400; color: var(--ink-3); font-size: 10.5px; margin-left: 6px; }
+  .dist-grp { box-shadow: inset 3px 0 0 var(--perfil); padding-left: 9px; margin-top: 6px; }
+  .perfil-0 { --perfil: var(--blue); }
+  .perfil-1 { --perfil: var(--gold); }
+  .perfil-2 { --perfil: var(--clay); }
   .dist-row { padding: 4px 0; border-top: 1px dashed var(--line-soft); }
   .dist-row .nom { font-size: 12.5px; line-height: 1.3; color: var(--ink-2); }
   .dist-row .nom small { display: block; font-size: 10.5px; color: var(--ink-3); }
-  .dist-row input { width: 100%; text-align: right; padding: 5px 7px; font-size: 12.5px; }
+  .dist-row input { width: 100%; text-align: right; padding: 5px 6px; font-size: 12.5px; }
   .dist-row.on .nom { color: var(--ink); font-weight: 600; }
   .dist-row.on .pct-in { border-color: var(--teal); }
   .dist-total {
@@ -744,6 +763,14 @@
         </div>
       </section>
 
+      <section class="card" id="cardAfp">
+        <div class="card-hd"><h2>Comparativo con la AFP</h2><span class="hint" id="hdAfp"></span></div>
+        <div class="card-bd">
+          <div class="scroll"><table class="comp afp" id="tablaAfp"></table></div>
+          <div id="notaAfp"></div>
+        </div>
+      </section>
+
       <section class="card">
         <div class="card-hd"><h2>Régimen recomendado</h2><span class="hint" id="hdReg"></span></div>
         <div class="card-bd" id="bdReg"></div>
@@ -907,47 +934,55 @@
   }
   var GRP_BR = "BlackRock — en dólares", GRP_JPM = "JP Morgan — en dólares";
   var APV = [
-    { nom: "Banchile Depósito XXI - D", ref: "fm2", nota: "tasa de la serie L" },
-    { nom: "Banchile Horizonte - L", ref: "fm1" },
-    { nom: "Itaú Dinámico Ultra - F3", ref: "fm6" },
-    { nom: "Itaú Gestionado Agresivo - F1", ref: "fm13" },
-    { nom: "Itaú Gestionado Conservador - F1", ref: "fm7" },
-    { nom: "Itaú Gestionado Moderado - F1", ref: "fm10" },
-    { nom: "Santander Private Banking Equilibrio Global", ref: "fm33" },
-    { nom: "Santander Private Banking Prudente Global", ref: "fm31" },
-    { nom: "Itaú National Equity Simple", tasa: real3a(54.08), nota: "3 años" },
-    { nom: "Santander Private Banking Agresivo Global", ref: "fm35" },
-    { nom: "Itaú Dinámico Simple", tasa: real3a(21.59), nota: "3 años" },
-    { nom: "LarrainVial Acciones Nacionales - A", ref: "fm18" },
-    { nom: "LarrainVial Ahorro Capital - A", ref: "fm16" },
-    { nom: "LarrainVial Cuenta Activa Agresivo - A", ref: "fm23" },
-    { nom: "LarrainVial Cuenta Activa Conservador - A", ref: "fm20" },
-    { nom: "LarrainVial Cuenta Activa Moderado - A", ref: "fm22" },
-    { nom: "Santander GO Acciones Globales ESG - Ejecutiva", ref: "fm39" },
-    { nom: "Santander Acciones Global Emergente - Ejecutiva", ref: "fm27" },
-    { nom: "Santander Renta Largo Plazo Pesos - Universal", ref: "fm30" },
-    { nom: "Santander Renta Largo Plazo UF - Universal", ref: "fm29" },
-    { nom: "MetLife Garantizado 2,1% temporal, 0,5% fijo desde 01-01-2031", contractual: true,
+    { nom: "Banchile Depósito XXI - D", vol: 2.43, ref: "fm2", nota: "tasa de la serie L" },
+    { nom: "Banchile Horizonte - L", vol: 4.86, ref: "fm1" },
+    { nom: "Itaú Dinámico Ultra - F3", vol: 4.13, ref: "fm6" },
+    { nom: "Itaú Gestionado Agresivo - F1", vol: 10.10, ref: "fm13" },
+    { nom: "Itaú Gestionado Conservador - F1", vol: 4.74, ref: "fm7" },
+    { nom: "Itaú Gestionado Moderado - F1", vol: 7.12, ref: "fm10" },
+    { nom: "Santander Private Banking Equilibrio Global", vol: 5.13, ref: "fm33" },
+    { nom: "Santander Private Banking Prudente Global", vol: 2.55, ref: "fm31" },
+    { nom: "Itaú National Equity Simple", vol: 14.26, tasa: real3a(54.08), nota: "3 años" },
+    { nom: "Santander Private Banking Agresivo Global", vol: 9.85, ref: "fm35" },
+    { nom: "Itaú Dinámico Simple", vol: 1.58, tasa: real3a(21.59), nota: "3 años" },
+    { nom: "LarrainVial Acciones Nacionales - A", vol: 14.04, ref: "fm18" },
+    { nom: "LarrainVial Ahorro Capital - A", vol: 2.57, ref: "fm16" },
+    { nom: "LarrainVial Cuenta Activa Agresivo - A", vol: 9.35, ref: "fm23" },
+    { nom: "LarrainVial Cuenta Activa Conservador - A", vol: 3.45, ref: "fm20" },
+    { nom: "LarrainVial Cuenta Activa Moderado - A", vol: 5.35, ref: "fm22" },
+    { nom: "Santander GO Acciones Globales ESG - Ejecutiva", vol: 15.11, ref: "fm39" },
+    { nom: "Santander Acciones Global Emergente - Ejecutiva", vol: 13.53, ref: "fm27" },
+    { nom: "Santander Renta Largo Plazo Pesos - Universal", vol: 2.71, ref: "fm30" },
+    { nom: "Santander Renta Largo Plazo UF - Universal", vol: 2.43, ref: "fm29" },
+    { nom: "MetLife Garantizado 2,1% temporal, 0,5% fijo desde 01-01-2031", vol: 0, contractual: true,
       tramo: { alta: 0.021, baja: 0.005, corte: 2031 } },
-    { nom: "Santander Selectas Chile - Global", ref: "fm28" },
-    { nom: "Santander Acciones Estados Unidos - IB", tasa: null, nota: "sin historia: escribe la tasa" },
-    { nom: "MetLife Garantizado 0,5%", tasa: 0.5, contractual: true },
-    { grp: GRP_BR, nom: "BGF Asian Dragon - A", tasa: realUsd(26.51, 5.32, 0.42) },
-    { grp: GRP_BR, nom: "BGF Emerging Markets Bond - A", tasa: realUsd(11.15, 6.69, 13.86) },
-    { grp: GRP_BR, nom: "BGF Fixed Income Global Opportunities - A", tasa: realUsd(5.90, 3.08, 5.33) },
-    { grp: GRP_BR, nom: "BGF Global Dynamic Equity - A", tasa: realUsd(13.88, 14.05, 15.57) },
-    { grp: GRP_BR, nom: "BGF Latin American - A", tasa: realUsd(49.16, -34.02, 36.35) },
-    { grp: GRP_BR, nom: "BGF US Basic Value - A", tasa: realUsd(14.07, 6.20, 9.76) },
-    { grp: GRP_BR, nom: "BGF US Growth - A", tasa: realUsd(7.39, 28.52, 50.86) },
-    { grp: GRP_BR, nom: "BGF USD High Yield Bond - A", tasa: realUsd(6.66, 7.38, 12.43) },
-    { grp: GRP_JPM, nom: "JPM Emerging Markets Equity - A", tasa: realUsd(32.16, 1.23, 5.31) },
-    { grp: GRP_JPM, nom: "JPM Global Income - A", tasa: realUsd(9.01, 8.20, 8.41) },
-    { grp: GRP_JPM, nom: "JPM Global Strategic Bond - A", tasa: realUsd(5.56, 5.06, 5.67) },
-    { grp: GRP_JPM, nom: "JPM Greater China - A", tasa: realUsd(31.22, 12.10, -10.19) }
+    { nom: "Santander Selectas Chile - Global", vol: 13.74, ref: "fm28" },
+    { nom: "Santander Acciones Estados Unidos - IB", vol: 13.90, tasa: null, nota: "sin historia: escribe la tasa" },
+    { nom: "MetLife Garantizado 0,5%", vol: 0, tasa: 0.5, contractual: true },
+    { grp: GRP_BR, nom: "BGF Asian Dragon - A", vol: 30.82, tasa: realUsd(26.51, 5.32, 0.42) },
+    { grp: GRP_BR, nom: "BGF Emerging Markets Bond - A", vol: 7.87, tasa: realUsd(11.15, 6.69, 13.86) },
+    { grp: GRP_BR, nom: "BGF Fixed Income Global Opportunities - A", vol: 3.70, tasa: realUsd(5.90, 3.08, 5.33) },
+    { grp: GRP_BR, nom: "BGF Global Dynamic Equity - A", vol: 18.32, tasa: realUsd(13.88, 14.05, 15.57) },
+    { grp: GRP_BR, nom: "BGF Latin American - A", vol: 24.64, tasa: realUsd(49.16, -34.02, 36.35) },
+    { grp: GRP_BR, nom: "BGF US Basic Value - A", vol: 12.90, tasa: realUsd(14.07, 6.20, 9.76) },
+    { grp: GRP_BR, nom: "BGF US Growth - A", vol: 26.24, tasa: realUsd(7.39, 28.52, 50.86) },
+    { grp: GRP_BR, nom: "BGF USD High Yield Bond - A", vol: 4.07, tasa: realUsd(6.66, 7.38, 12.43) },
+    { grp: GRP_JPM, nom: "JPM Emerging Markets Equity - A", vol: 27.61, tasa: realUsd(32.16, 1.23, 5.31) },
+    { grp: GRP_JPM, nom: "JPM Global Income - A", vol: 7.36, tasa: realUsd(9.01, 8.20, 8.41) },
+    { grp: GRP_JPM, nom: "JPM Global Strategic Bond - A", vol: 3.82, tasa: realUsd(5.56, 5.06, 5.67) },
+    { grp: GRP_JPM, nom: "JPM Greater China - A", vol: 23.40, tasa: realUsd(31.22, 12.10, -10.19) }
   ];
+  /* Perfil por volatilidad anualizada del mismo informe (5 años; 12 meses en dólares).
+     Los garantizados tienen volatilidad 0: van con los conservadores. */
+  var PERFILES = [
+    { nom: "Conservadores", hint: "volatilidad bajo 5%", hasta: 5 },
+    { nom: "Moderados", hint: "volatilidad entre 5% y 9%", hasta: 9 },
+    { nom: "Agresivos", hint: "volatilidad sobre 9%", hasta: Infinity }
+  ];
+  function perfilDe(f) { for (var k = 0; k < PERFILES.length; k++) if (f.vol < PERFILES[k].hasta) return k; return PERFILES.length - 1; }
   var CONDICION = {};
-  CONDICION[GRP_BR] = "Solo con montos sobre UF 1.000. Tasa 2023–2025, sin tipo de cambio.";
-  CONDICION[GRP_JPM] = "Solo en traspasos sobre UF 3.000. Tasa 2023–2025, sin tipo de cambio.";
+  CONDICION[GRP_BR] = "BlackRock · solo sobre UF 1.000 · tasa en USD 2023–2025";
+  CONDICION[GRP_JPM] = "JP Morgan · solo traspasos sobre UF 3.000 · tasa en USD 2023–2025";
   // La propuesta arranca en 50/50 PB Agresivo + Garantizado, la mezcla típica de la propuesta MetLife.
   var APV_INICIAL = { 9: 50, 20: 50 };
 
@@ -970,7 +1005,7 @@
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
    "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
    "distProp","totalProp","notaFondoProp",
-   "costoProd","cardProy","hdProy","tablaProy","avisoProy"
+   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   // Poblar los cuatro selectores. La propuesta arranca en 50/50 PB Agresivo + Garantizado,
@@ -988,26 +1023,28 @@
     el[par[0]].innerHTML = h + "</optgroup>";
   });
 
-  /* Filas de la distribución: fondo, tasa real (editable) y porcentaje. */
+  /* Filas de la distribución: fondo, tasa real (editable) y porcentaje, agrupadas por perfil. */
   (function () {
     var fmt = function (v) { return v === null || v === undefined ? "" : String(v); };
-    var h = '<div class="dist-hd" role="row"><span>Fondo</span><span>Tasa %</span><span>%</span></div>', grp = null;
-    APV.forEach(function (f, i) {
-      if ((f.grp || null) !== grp) {
-        grp = f.grp || null;
-        h += '<div class="dist-grp">' + grp + '<small>' + CONDICION[grp] + '</small></div>';
-      }
+    var h = '<div class="dist-hd" role="row"><span>Fondo</span><span>Tasa %</span><span>%</span></div>';
+    PERFILES.forEach(function (pf, k) {
+      h += '<div class="dist-grp perfil-' + k + '">' + pf.nom + '<small>' + pf.hint + '</small></div>';
+      APV.forEach(function (f, i) { if (perfilDe(f) === k) h += fila(f, i); });
+    });
+    el.distProp.innerHTML = h;
+
+    function fila(f, i) {
       // El garantizado muestra su tasa vigente; el cambio de tasa va en la nota de abajo.
       var tasa = f.tramo ? fmt(Math.round(f.tramo.alta * 1000) / 10) : fmt(f.ref ? tasaNeta(buscarFondo(f.ref)) : f.tasa);
-      var nota = f.tramo ? etiquetaTramo(f.tramo) + " real" : (f.nota || "");
-      h += '<div class="dist-row" role="row" id="apvFila' + i + '">' +
+      var nota = [f.tramo ? etiquetaTramo(f.tramo) + " real" : f.nota, f.grp ? CONDICION[f.grp] : ""]
+        .filter(Boolean).join(" · ");
+      return '<div class="dist-row" role="row" id="apvFila' + i + '">' +
         '<span class="nom">' + f.nom + (nota ? "<small>" + nota + "</small>" : "") + '</span>' +
         '<input type="number" step="0.01" id="apvTasa' + i + '" value="' + tasa + '"' +
           (f.tramo ? ' disabled placeholder="—"' : ' placeholder="—"') + ' aria-label="Tasa real anual de ' + f.nom + '">' +
         '<input type="number" class="pct-in" min="0" max="100" step="5" id="apvPct' + i + '" value="' + (APV_INICIAL[i] || 0) + '" aria-label="Porcentaje en ' + f.nom + '">' +
         '</div>';
-    });
-    el.distProp.innerHTML = h;
+    }
   })();
 
   function num(input) { return Number(String(input.value).replace(/\./g, "").replace(/[^0-9]/g, "")) || 0; }
@@ -1249,6 +1286,7 @@
     pintarCosto(A, B, hayProp);
     pintarBonos(A, B, hayProp, p);
     pintarProyeccion(A, B, hayProp);
+    pintarAfp(B, hayProp);
     pintarRegimen(A, B, hayProp, p);
     pintarAnual(A.a, honAnual, p);
     pintarTramos(honAnual > 0 ? tramoDe(A.a.baseGC / 12) : A.m.tramo);
@@ -1512,6 +1550,50 @@
         : ' Ninguno de los fondos comparados aquí garantiza su tasa.') +
       '</div>' +
       (costo > 0 ? '<p class="note">La columna propuesta va neta del ' + pct(costo / 100, 1) + ' anual de costo del producto.</p>' : "");
+  }
+
+  /* El mismo aporte de la propuesta, puesto en cada fondo de AFP. Todo en pesos de hoy.
+     La pensión es una renta pareja por 20 años (de los 65 a los 85) con el saldo
+     rentando 3% real: un orden de magnitud, no una cotización de renta vitalicia. */
+  var PENSION_ANIOS = 20, PENSION_TASA = 0.03;
+  function pensionMes(saldo) {
+    var r = Math.pow(1 + PENSION_TASA, 1 / 12) - 1, n = PENSION_ANIOS * 12;
+    return saldo * r / (1 - Math.pow(1 + r, -n));
+  }
+  function pintarAfp(B, hayProp) {
+    var ed = edades();
+    if (!ed || ed.error || !hayProp || B.aporte <= 0) {
+      el.hdAfp.textContent = "";
+      el.tablaAfp.innerHTML = "";
+      el.notaAfp.innerHTML = '<p class="empty">' + (!ed || ed.error
+        ? "Pon la fecha de nacimiento para comparar la propuesta con la AFP."
+        : "Carga un APV en la propuesta para compararlo con los fondos de la AFP.") + '</p>';
+      return;
+    }
+    var n = ed.aniosRestantes;
+    el.hdAfp.textContent = "mismo aporte, a los " + ed.retiro;
+    var mB = leerProp();
+    var prop = acumular(B.aporte, mB.mezcla, dec(el.costoProd), n, B.esporadico).total;
+
+    var h = '<thead><tr><th></th><th>Saldo al retiro</th><th>Pensión / mes</th><th>vs propuesta</th></tr></thead><tbody>';
+    h += '<tr class="total"><td>Propuesta<small class="afp-tasa">' + etiquetaMezcla(mB) + '</small></td>' +
+      '<td class="n">' + $(prop) + '</td><td class="n">' + $(pensionMes(prop)) + '</td><td class="n">—</td></tr>';
+    var afpNom = (el.afp.options[el.afp.selectedIndex] || {}).text || "";
+    FONDOS.forEach(function (f) {
+      if (f.grp !== "AFP — cuenta APV") return;
+      var saldo = acumular(B.aporte, [{ id: f.id, tasa: tasaNeta(f), peso: 1 }], 0, n, B.esporadico).total;
+      var dif = prop - saldo;
+      var tuya = afpNom.split(" ")[0] && f.nom.indexOf(afpNom.split(" ")[0]) === 0;
+      h += '<tr class="rule' + (tuya ? " tuya" : "") + '"><td class="sub">' + f.nom +
+        '<small class="afp-tasa">' + pct(tasaNeta(f) / 100, 2) + ' real</small></td>' +
+        '<td class="n">' + $(saldo) + '</td><td class="n">' + $(pensionMes(saldo)) + '</td>' +
+        '<td class="n ' + (dif >= 0 ? "posv" : "neg") + '">' + (dif >= 0 ? "+" : "−") + $(Math.abs(dif)) + '</td></tr>';
+    });
+    el.tablaAfp.innerHTML = h + "</tbody>";
+    el.notaAfp.innerHTML = '<p class="note">Mismo aporte mensual (' + $(B.aporte) + ') y mismos años en cada alternativa. ' +
+      'La columna «vs propuesta» es cuánto más (verde) o menos (rojo) junta la propuesta que ese fondo. ' +
+      'Los fondos de AFP van netos de la comisión de APV (0,6% anual); la propuesta, del costo del producto. ' +
+      'Pensión: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real, en pesos de hoy.</p>';
   }
 
   function pintarRegimen(A, B, hayProp, p) {
