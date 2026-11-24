@@ -653,7 +653,7 @@
                 <input type="number" id="topeApv" step="1" value="50">
               </div>
             </div>
-            <p class="note" style="margin-top:10px">La UF y los topes cambian seguido. Ajústalos si necesitas precisión al peso.</p>
+            <p class="note" style="margin-top:10px">La UF viene de la SII y se actualiza sola cada día. Los topes cambian una vez al año: ajústalos si necesitas precisión al peso.</p>
           </details>
         </div>
       </section>
@@ -715,8 +715,14 @@
         <div class="card-hd"><h2>Situación propuesta</h2><span class="hint">con seguro APV</span></div>
         <div class="card-bd">
           <div class="field">
-            <label class="lbl" for="apvProp">APV mensual</label>
-            <span class="money"><span>$</span><input type="text" id="apvProp" inputmode="numeric" value="0" aria-label="APV mensual propuesto"></span>
+            <label class="lbl" for="apvProp">Aporte mensual total</label>
+            <span class="money"><span>$</span><input type="text" id="apvProp" inputmode="numeric" value="0" aria-label="Aporte mensual total de la propuesta, ahorro más seguro"></span>
+            <p class="note" id="notaAporteProp">Lo que paga el cliente al mes: ahorro más la prima del seguro. Mínimo 2,29 UF.</p>
+          </div>
+          <div class="field">
+            <label class="lbl" for="seguroApv">Seguro de vida (UF al mes)</label>
+            <input type="number" id="seguroApv" step="0.01" min="0" value="1.29" aria-label="Prima mensual del seguro de vida en UF">
+            <p class="note">Prima fija del APV MetLife; el capital asegurado depende de la edad. Va dentro del APV: <b>sí rebaja impuesto</b>, pero no se acumula en el fondo.</p>
           </div>
           <div class="field">
             <span class="lbl">Régimen tributario</span>
@@ -729,11 +735,6 @@
             <label class="lbl" for="espProp">Aporte esporádico al año</label>
             <span class="money"><span>$</span><input type="text" id="espProp" inputmode="numeric" value="0" aria-label="Aporte esporádico anual, situación propuesta"></span>
             <p class="note">Depósito directo, fuera de la planilla. Se recupera en la Operación Renta de abril.</p>
-          </div>
-          <div class="field">
-            <label class="lbl" for="seguroApv">Seguro de vida dentro del APV</label>
-            <span class="money"><span>$</span><input type="text" id="seguroApv" inputmode="numeric" value="0" aria-label="Prima mensual del seguro acogido a APV"></span>
-            <p class="note">La prima va dentro del producto APV: <b>sí rebaja impuesto</b> y se suma al aporte.</p>
           </div>
 
           <div class="divider"></div>
@@ -950,6 +951,8 @@
   function fechaCorta(f) { var p = f.split("-"); return p[2] + "-" + p[1] + "-" + p[0]; }
   var AFP_PERIODO = "5 años al " + fechaCorta(AFP_DATOS.hasta);
   document.getElementById("fechaAfp").textContent = fechaCorta(AFP_DATOS.hasta);
+  // La UF por defecto es la del último día que bajó la actualización diaria (SII).
+  document.getElementById("uf").value = Math.round(AFP_DATOS.ufHasta);
   var FONDOS = [];
   Object.keys(AFP_NOMBRES).forEach(function (a) {
     ["A", "B", "C", "D", "E"].forEach(function (t) {
@@ -1105,7 +1108,7 @@
    "edadRetiro","bonos","cardBonos","tablaBonos","notaBonos",
    "fondoHoy","fondoHoy2","pctHoy","restoHoy","tasaHoy","wrapTasaHoy","notaFondoHoy",
    "distProp","totalProp","notaFondoProp",
-   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp","hdResumen","bdResumen"
+   "costoProd","cardProy","hdProy","tablaProy","avisoProy","hdAfp","tablaAfp","notaAfp","hdResumen","bdResumen","notaAporteProp"
   ].forEach(function (id) { el[id] = document.getElementById(id); });
 
   /* La situación actual ofrece lo que la persona puede tener hoy: AFP, los fondos
@@ -1269,9 +1272,23 @@
     }).join(" + ");
   }
 
+  var AHORRO_MIN_UF = 1;
+  function pintarAporteProp(total, seguro, ahorro, p) {
+    var n = el.notaAporteProp, minimo = Math.round((AHORRO_MIN_UF + dec(el.seguroApv)) * p.uf);
+    if (!total) {
+      n.innerHTML = "Lo que paga el cliente al mes: ahorro más la prima del seguro. Mínimo " +
+        String(AHORRO_MIN_UF + dec(el.seguroApv)).replace(".", ",") + " UF (" + $(minimo) + ").";
+      return;
+    }
+    n.innerHTML = "Seguro " + $(seguro) + " + ahorro <b>" + $(ahorro) + "</b>." +
+      (ahorro < AHORRO_MIN_UF * p.uf
+        ? ' <b style="color:var(--clay)">El ahorro mínimo es 1 UF (' + $(AHORRO_MIN_UF * p.uf) + '): el aporte total debe ser al menos ' + $(minimo) + '.</b>'
+        : "");
+  }
+
   /* ---------------- Motor tributario ---------------- */
   function params() {
-    var uf = dec(el.uf) || 40845;
+    var uf = dec(el.uf) || AFP_DATOS.ufHasta;
     return {
       uf: uf,
       topeImp: uf * (dec(el.topeImp) || 87.8),
@@ -1383,7 +1400,12 @@
   function render() {
     var p = params();
     var aporteHoy = num(el.apvHoy), segFuera = num(el.seguroFuera);
-    var aporteProp = num(el.apvProp), segDentro = num(el.seguroApv);
+    /* La propuesta se ingresa como aporte total. El seguro es una prima fija en UF que sale
+       primero; lo que queda es ahorro, con un mínimo de 1 UF (2,29 UF en total). */
+    var totalProp = num(el.apvProp);
+    var segDentro = totalProp > 0 ? Math.min(totalProp, Math.round(dec(el.seguroApv) * p.uf)) : 0;
+    var aporteProp = totalProp - segDentro;
+    pintarAporteProp(totalProp, segDentro, aporteProp, p);
 
     /* El líquido que uno declara es el de antes de decidir cuánto ahorrar. Si el bruto se
        resolviera con el APV puesto, cambiaría solo cada vez que se toca el aporte, y el
@@ -1811,7 +1833,7 @@
     L.push("PROPUESTA DE AHORRO APV");
     L.push("");
     L.push("Tu aporte: " + $(B.apvTotal) + " al mes" +
-      (B.seguroDentro > 0 ? ". De eso, " + $(B.aporte) + " se ahorra y " + $(B.seguroDentro) + " es la prima de tu seguro de vida (no se acumula)." : "."));
+      (B.seguroDentro > 0 ? ". De eso, " + $(B.aporte) + " se ahorra y " + $(B.seguroDentro) + " es la prima de tu seguro de vida (" + String(dec(el.seguroApv)).replace(".", ",") + " UF; no se acumula)." : "."));
     if (ganaB) {
       L.push("Beneficio tributario (régimen B): pagas " + $(rebajaMes) + " menos de impuesto al mes (" + $(ahorroB) + " al año). " +
         "El costo real para ti es " + $(B.apvTotal - rebajaMes) + " al mes.");
@@ -2059,14 +2081,14 @@
     try { input.setSelectionRange(caret, caret); } catch (e) {}
   }
 
-  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "seguroApv", "bonos",
+  ["sueldo", "plan", "honorarios", "apvHoy", "seguroFuera", "apvProp", "bonos",
    "espHoy", "espProp"].forEach(function (id) {
     el[id].addEventListener("input", function () { formatearMoneda(el[id]); render(); });
     el[id].addEventListener("blur", function () { if (!el[id].value) { el[id].value = "0"; render(); } });
   });
 
   ["comision", "uf", "topeImp", "topeAfc", "retencion", "tasaIndep", "topeApv",
-   "edadRetiro", "tasaHoy", "costoProd", "pctHoy"].forEach(function (id) {
+   "edadRetiro", "tasaHoy", "costoProd", "pctHoy", "seguroApv"].forEach(function (id) {
     el[id].addEventListener("input", render);
   });
   el.fechaNac.addEventListener("input", render);
