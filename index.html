@@ -425,6 +425,9 @@
     background: var(--teal-soft); color: var(--ink); font-size: 12px; font-family: var(--mono);
   }
   .op-chip b { font-family: var(--sans); color: var(--teal); }
+  .op-chip.rec { background: var(--teal); color: var(--surface); }
+  .op-chip.rec b { color: var(--surface); }
+  .op-chip.rec .op-x { color: var(--surface); opacity: .8; }
   .op-x { appearance: none; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
   .op-x:hover { color: var(--clay); }
   .op-borrar { appearance: none; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 12px; text-decoration: underline; }
@@ -480,6 +483,15 @@
     #informe .p-comp td { padding: 2mm 0; }
     #informe .p-op .graf svg { max-height: 68mm; }
     #informe .p-comp .op-col { color: var(--teal); font-family: var(--sans); font-weight: 650; text-transform: none; letter-spacing: 0; font-size: 11pt; }
+    #informe .p-tiles.ops .p-tile .v { color: var(--ink); }
+    #informe .p-tile.rec { border: 2px solid var(--teal); background: var(--teal-soft); }
+    #informe .p-tile.rec .k, #informe .p-tile.rec .v { color: var(--teal); }
+    #informe .p-rec { margin-top: -2mm; }
+    #informe .p-comp td.n { padding-right: 3mm; }
+    #informe .p-comp td.rec { background: var(--teal-soft); }
+    #informe .p-comp .op-col.rec { color: var(--teal); }
+    #informe .p-badge { display: block; font-size: 8pt; font-weight: 650; color: #fff; background: var(--teal); border-radius: 2mm; padding: .6mm 2mm; margin-top: 1mm; text-align: center; }
+    #informe .p-comp tr.ben td { font-weight: 600; }
     #informe .p-sub { display: block; font-family: var(--sans); font-size: 8.5pt; color: var(--ink-3); }
     #informe .leyenda { font-size: 10pt; margin-bottom: 2mm; }
     #informe .p-pie { position: absolute; left: 22mm; right: 22mm; bottom: 9mm; font-size: 8.5pt; color: var(--ink-3); border-top: 1px solid var(--line-soft); padding-top: 2.5mm; }
@@ -2046,7 +2058,8 @@
     var barra = '<div class="opciones">' +
       '<span class="lbl">Opciones guardadas ' + OPCIONES.length + '/' + MAX_OPCIONES + '</span>' +
       (OPCIONES.length ? '<div class="op-lista">' + OPCIONES.map(function (o, i) {
-        return '<span class="op-chip"><b>Opción ' + (i + 1) + '</b> ' + $(o.total) + ' · ' + PERFIL_SING[o.perfil] + ' · ' + mm(o.proyectado) +
+        var rec = OPCIONES.length >= 2 && i === opcionRecomendada();
+        return '<span class="op-chip' + (rec ? " rec" : "") + '"' + (rec ? ' title="Mayor beneficio tributario"' : "") + '><b>Opción ' + (i + 1) + (rec ? " · Recomendada" : "") + '</b> ' + $(o.total) + ' · ' + PERFIL_SING[o.perfil] + ' · ' + mm(o.proyectado) +
           '<button type="button" class="op-x" data-quitar="' + i + '" aria-label="Quitar opción ' + (i + 1) + '">×</button></span>';
       }).join("") + '</div>' : "") +
       '<div class="resumen-acc">' +
@@ -2087,6 +2100,14 @@
      Cada opción es una foto de la propuesta (monto, fondos, resultados). Se comparan entre
      sí para el mismo cliente; si cambian la edad o la fecha de retiro, conviene borrarlas. */
   var MAX_OPCIONES = 3, OPCIONES = [], ACTUAL = null;
+  // Beneficio tributario al año: la rebaja de impuesto (B) o el bono del Estado (A).
+  function beneficioAnual(o) { return o.ganaB ? o.ahorroB : o.bonoA; }
+  // La recomendada es la de mayor beneficio tributario; en empate, la primera.
+  function opcionRecomendada() {
+    var mejor = 0;
+    OPCIONES.forEach(function (o, i) { if (beneficioAnual(o) > beneficioAnual(OPCIONES[mejor])) mejor = i; });
+    return mejor;
+  }
 
   function textoOpciones(capUf, cober, p) {
     var o0 = OPCIONES[0], L = [];
@@ -2094,9 +2115,11 @@
     L.push("");
     L.push("Jubilación a los " + o0.ed.retiro + " (" + o0.plazo + " de ahorro). Tramo de impuesto aproximado: " + o0.tramoTxt + ".");
     L.push("Montos en pesos de hoy.");
+    var rec = opcionRecomendada();
+    L.push("Recomendada: la opción " + (rec + 1) + ", la de mayor beneficio tributario (" + $(beneficioAnual(OPCIONES[rec])) + " al año).");
     OPCIONES.forEach(function (o, i) {
       L.push("");
-      L.push("OPCIÓN " + (i + 1) + " — " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil]);
+      L.push("OPCIÓN " + (i + 1) + (i === rec ? " (RECOMENDADA)" : "") + " — " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil]);
       if (o.seguro > 0) L.push("· " + $(o.ahorro) + " se ahorra y " + $(o.seguro) + " es la prima del seguro de vida (no se acumula)");
       L.push(o.ganaB
         ? "· Pagas " + $(o.rebajaMes) + " menos de impuesto al mes (régimen B): te cuesta " + $(o.costoReal) + " al mes"
@@ -2118,19 +2141,24 @@
   }
 
   function pdfOpciones(capUf, cober, p, fechaHoy, nombre, esc, tile, pagina, pie) {
-    var o0 = OPCIONES[0], I = "";
-    var cols = OPCIONES.map(function (o, i) { return '<td class="n op-col">Opción ' + (i + 1) + '</td>'; }).join("");
+    var o0 = OPCIONES[0], I = "", rec = opcionRecomendada();
+    var recCls = function (i) { return i === rec ? " rec" : ""; };
+    var cols = OPCIONES.map(function (o, i) {
+      return '<td class="n op-col' + recCls(i) + '">Opción ' + (i + 1) + (i === rec ? '<span class="p-badge">Recomendada</span>' : "") + '</td>';
+    }).join("");
     var fila = function (k, f, cls) {
-      return '<tr' + (cls ? ' class="' + cls + '"' : "") + '><td>' + k + '</td>' + OPCIONES.map(function (o) { return '<td class="n">' + f(o) + '</td>'; }).join("") + '</tr>';
+      return '<tr' + (cls ? ' class="' + cls + '"' : "") + '><td>' + k + '</td>' + OPCIONES.map(function (o, i) { return '<td class="n' + recCls(i) + '">' + f(o) + '</td>'; }).join("") + '</tr>';
     };
     // 1. Portada
     I += '<section class="p-pag p-portada"><div class="p-eyebrow">Propuesta de ahorro previsional voluntario</div>' +
       (nombre ? '<div class="p-cliente">Preparada para ' + esc(nombre) + '</div>' : "") +
       '<h1>' + OPCIONES.length + ' opciones de ahorro<br>para tu jubilación</h1>' +
       '<div class="p-meta">' + fechaHoy + ' · ' + o0.ed.cumplida + ' años hoy · jubilación a los ' + o0.ed.retiro + ' · ' + o0.plazo + ' de ahorro · tramo de impuesto ' + o0.tramoTxt + '</div>' +
-      '<div class="p-tiles">' + OPCIONES.map(function (o, i) {
-        return tile("Opción " + (i + 1), $(o.total), "al mes · podrías juntar " + mm(o.proyectado));
-      }).join("") + '</div>' + pie + '</section>';
+      '<div class="p-tiles ops">' + OPCIONES.map(function (o, i) {
+        var t = tile("Opción " + (i + 1) + (i === rec ? " · Recomendada" : ""), $(o.total), "al mes · podrías juntar " + mm(o.proyectado));
+        return i === rec ? t.replace('class="p-tile"', 'class="p-tile rec"') : t;
+      }).join("") + '</div>' +
+      '<p class="p-txt p-rec">Recomendamos la <b>opción ' + (rec + 1) + '</b>: es la de mayor beneficio tributario, ' + $(beneficioAnual(OPCIONES[rec])) + ' al año.</p>' + pie + '</section>';
     // 2. Comparación
     I += pagina("Compara tus opciones", "Lado a lado",
       '<table class="p-t p-comp"><tr class="hd"><td></td>' + cols + '</tr>' +
@@ -2139,6 +2167,7 @@
       (OPCIONES.some(function (o) { return o.ganaB; }) ? fila("Menos impuesto al mes", function (o) { return o.ganaB ? $(o.rebajaMes) : "—"; }) : "") +
       (OPCIONES.some(function (o) { return !o.ganaB; }) ? fila("Bono del Estado al año", function (o) { return o.ganaB ? "—" : $(o.bonoA); }) : "") +
       fila("<b>Costo real al mes</b>", function (o) { return "<b>" + $(o.costoReal) + "</b>"; }, "tot") +
+      fila("Beneficio tributario al año", function (o) { return $(beneficioAnual(o)); }, "ben") +
       fila("Perfil", function (o) { return PERFIL_SING[o.perfil]; }) +
       fila("Rentabilidad promedio", function (o) { return pct(o.rEq, 2) + " real"; }) +
       fila("<b>Saldo a los " + o0.ed.retiro + "</b>", function (o) { return "<b>" + mm(o.proyectado) + "</b>"; }, "tot") +
@@ -2147,7 +2176,7 @@
       '</table><p class="p-txt">Pensión aproximada: saldo repartido en ' + PENSION_ANIOS + ' años con ' + pct(PENSION_TASA, 0) + ' real. AFP: mismo perfil de riesgo, promedio de los últimos 5 años, después de la comisión de APV.</p>');
     // 3. Una página por opción
     OPCIONES.forEach(function (o, i) {
-      I += pagina("Opción " + (i + 1) + " · " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil], "Podrías juntar " + mm(o.proyectado),
+      I += pagina("Opción " + (i + 1) + (i === rec ? " · Recomendada" : "") + " · " + $(o.total) + " al mes · perfil " + PERFIL_SING[o.perfil], "Podrías juntar " + mm(o.proyectado),
         '<table class="p-t"><tr class="hd"><td>Fondo</td><td class="n">%</td><td>Rentabilidad real y período</td></tr>' +
         o.mezcla.map(function (m) {
           return '<tr><td>' + esc(m.nom) + '</td><td class="n">' + Math.round(m.peso * 100) + '%</td><td class="b">' + esc(m.base) + '</td></tr>';
